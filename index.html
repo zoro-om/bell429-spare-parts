@@ -1,9 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bell 429 Spare Parts</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 25px 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd5e1;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .search-box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      margin-bottom: 25px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .parts {
+      display: grid;
+      gap: 15px;
+    }
+
+    .part {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .part h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .part p {
+      margin: 7px 0;
+    }
+
+    .part-number {
+      font-weight: bold;
+      color: #2563eb;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Bell 429 Spare Parts</h1>
+
+  <header>
+    <h1>Bell 429 Spare Parts</h1>
+    <p>Spare Parts Reference &amp; Inventory</p>
+  </header>
+
+  <div class="container">
+
+    <div class="search-box">
+      <input
+        type="text"
+        id="search"
+        placeholder="Search by part number or description..."
+        onkeyup="searchParts()"
+      >
+    </div>
+
+    <div class="parts" id="parts">
+
+      <div class="part">
+        <h2>Sample Part</h2>
+        <p>Part Number:
+          <span class="part-number">B429-SAMPLE-001</span>
+        </p>
+        <p>Description: Sample spare part</p>
+        <p>Status: Available</p>
+      </div>
+
+      <div class="part">
+        <h2>Sample Component</h2>
+        <p>Part Number:
+          <span class="part-number">B429-SAMPLE-002</span>
+        </p>
+        <p>Description: Sample component</p>
+        <p>Status: Available</p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <footer>
+    Bell 429 Spare Parts
+  </footer>
+
+  <script>
+    function searchParts() {
+      const input = document.getElementById("search");
+      const filter = input.value.toLowerCase();
+      const parts = document.querySelectorAll(".part");
+
+      parts.forEach(function(part) {
+        const text = part.textContent.toLowerCase();
+
+        if (text.includes(filter)) {
+          part.style.display = "block";
+        } else {
+          part.style.display = "none";
+        }
+      });
+    }
+  </script>
+
 </body>
 </html>
