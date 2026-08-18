@@ -1,159 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bell 429 Spare Parts</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      color: #1f2937;
-    }
-
-    header {
-      background: #111827;
-      color: white;
-      padding: 25px 20px;
-      text-align: center;
-    }
-
-    header h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
-    }
-
-    header p {
-      margin: 0;
-      color: #cbd5e1;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 30px auto;
-      padding: 0 20px;
-    }
-
-    .search-box {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      margin-bottom: 25px;
-    }
-
-    .search-box input {
-      width: 100%;
-      padding: 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-
-    .parts {
-      display: grid;
-      gap: 15px;
-    }
-
-    .part {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-
-    .part h2 {
-      margin-top: 0;
-      font-size: 20px;
-    }
-
-    .part p {
-      margin: 7px 0;
-    }
-
-    .part-number {
-      font-weight: bold;
-      color: #2563eb;
-    }
-
-    footer {
-      text-align: center;
-      padding: 30px 20px;
-      color: #6b7280;
-      font-size: 14px;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bell 429 — Local Parts Index</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background:#f4f6f8;color:#172033}
+header{background:#0e1a2d;color:#fff;padding:28px 20px} h1{margin:0 0 6px} header p{margin:0;opacity:.8}
+main{max-width:1000px;margin:24px auto;padding:0 16px}.box{background:#fff;border-radius:16px;padding:18px;box-shadow:0 5px 20px #00000012;margin-bottom:18px}
+input{width:100%;box-sizing:border-box;padding:16px;border:2px solid #ccd2da;border-radius:12px;font-size:18px}.meta{margin:10px 0;color:#657083}
+.card{padding:16px 0;border-top:1px solid #e6e9ed}.card:first-child{border-top:0}.pn{font-size:20px;font-weight:700}.desc{margin:5px 0}.small{font-size:13px;color:#687386}.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#edf2f7;margin-left:6px;font-size:12px}
+#results:empty:before{content:'Type a part number or description';color:#8a93a1}.warn{font-size:13px;color:#7a4b00;background:#fff6df;padding:10px;border-radius:10px}
+</style>
 </head>
-
 <body>
-
-  <header>
-    <h1>Bell 429 Spare Parts</h1>
-    <p>Spare Parts Reference &amp; Inventory</p>
-  </header>
-
-  <div class="container">
-
-    <div class="search-box">
-      <input
-        type="text"
-        id="search"
-        placeholder="Search by part number or description..."
-        onkeyup="searchParts()"
-      >
-    </div>
-
-    <div class="parts" id="parts">
-
-      <div class="part">
-        <h2>Sample Part</h2>
-        <p>Part Number:
-          <span class="part-number">B429-SAMPLE-001</span>
-        </p>
-        <p>Description: Sample spare part</p>
-        <p>Status: Available</p>
-      </div>
-
-      <div class="part">
-        <h2>Sample Component</h2>
-        <p>Part Number:
-          <span class="part-number">B429-SAMPLE-002</span>
-        </p>
-        <p>Description: Sample component</p>
-        <p>Status: Available</p>
-      </div>
-
-    </div>
-
-  </div>
-
-  <footer>
-    Bell 429 Spare Parts
-  </footer>
-
-  <script>
-    function searchParts() {
-      const input = document.getElementById("search");
-      const filter = input.value.toLowerCase();
-      const parts = document.querySelectorAll(".part");
-
-      parts.forEach(function(part) {
-        const text = part.textContent.toLowerCase();
-
-        if (text.includes(filter)) {
-          part.style.display = "block";
-        } else {
-          part.style.display = "none";
-        }
-      });
-    }
-  </script>
-
-</body>
-</html>
+<header><h1>Bell 429 Spare Parts</h1><p>Local search index — generated from the supplied IPB PDFs</p></header>
+<main>
+<div class="box"><div class="warn">For authorized maintenance/reference use only. This index contains information extracted from supplied Bell documentation. Do not publish or distribute it unless you have the required authorization.</div></div>
+<div class="box"><input id="search" placeholder="Search by part number or description…" autocomplete="off"><div id="meta" class="meta"></div><div id="results"></div></div>
+</main>
+<script>
+let parts=[];
+const input=document.getElementById('search'), results=document.getElementById('results'), meta=document.getElementById('meta');
+fetch('parts_index.json').then(r=>r.json()).then(d=>{parts=d.records||[];meta.textContent=`${new Set(parts.map(x=>x.part_number)).size.toLocaleString()} unique part numbers · ${parts.length.toLocaleString()} indexed entries`;}).catch(()=>meta.textContent='Could not load parts_index.json');
+function render(q){q=q.trim().toLowerCase(); if(!q){results.innerHTML='';return;} const seen=new Set(), out=[]; for(const p of parts){const hay=(p.part_number+' '+p.nomenclature+' '+p.notes+' '+p.dmc).toLowerCase(); if(hay.includes(q)&&!seen.has(p.part_number)){seen.add(p.part_number);out.push(p);if(out.length>=100)break;}} results.innerHTML=out.map(p=>`<div class="card"><div class="pn">${esc(p.part_number)} ${p.availability?`<span class="badge">${esc(p.availability)}</span>`:''}</div><div class="desc">${esc(p.nomenclature)}</div><div class="small">Item ${esc(p.item)} · DMC ${esc(p.dmc)} · PDF ${esc(p.source.replace('.txt','.pdf'))} · page ${esc(p.printed_page||p.pdf_page)}</div>${p.notes?`<div class="small">${esc(p.notes)}</div>`:''}</div>`).join('');}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+input.addEventListener('input',()=>render(input.value));
+</script>
+</body></html>
