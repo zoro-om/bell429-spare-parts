@@ -8,7 +8,7 @@
 
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 const MAX_BODY_BYTES = 64 * 1024;
-const ALLOWED_ORIGIN = "https://REPLACE-WITH-YOUR-DOMAIN";
+const ALLOWED_ORIGIN = "https://bell429-spare-parts.pages.dev";
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
