@@ -1,0 +1,4 @@
+# Block deployment metadata and source-map probing.
+/.git /404.html 404
+/.git/* /404.html 404
+/*.map /404.html 404
