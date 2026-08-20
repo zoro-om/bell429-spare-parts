@@ -1,0 +1,8 @@
+name = "bell429-spare-parts"
+compatibility_date = "2026-08-18"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bell429-spare-parts"
+database_id = "5d6e08fb-9838-479f-8ad4-d2bae55314b9"
