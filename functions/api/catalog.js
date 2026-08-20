@@ -1,25 +1,99 @@
-import { requireSession, json } from "../_lib/auth.js";
+import { json } from "../_lib/auth.js";
 
 const MAX_RESULTS = 25;
+const MAX_QUERY_LENGTH = 80;
+
+function clean(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim();
+}
 
 export async function onRequestGet(context) {
-  const auth = await requireSession(context.request, context.env, false);
-  if (auth.response) return auth.response;
-  const q = String(new URL(context.request.url).searchParams.get("q") || "").trim().slice(0, 80);
-  if (q.length < 2) return json({ parts: [] });
+  const url = new URL(context.request.url);
 
-  // The catalog remains an internal static asset but is never directly exposed.
-  // This endpoint returns only a small, query-scoped result set.
-  const assetUrl = new URL("/parts_index.json", context.request.url);
+  // الفهرس العام: لا يحتاج تسجيل دخول.
+  // لكن لا نعيد البيانات الحساسة أو مراجع ملفات PDF.
+
+  const q = clean(
+    url.searchParams.get("q") || ""
+  ).slice(0, MAX_QUERY_LENGTH);
+
+  if (q.length < 2) {
+    return json(
+      { parts: [] },
+      200,
+      {
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      }
+    );
+  }
+
+  // الوصول إلى ملف الفهرس داخليًا فقط عبر ASSETS.
+  // لن يكون الملف نفسه متاحًا مباشرة للزائر.
+  const assetUrl = new URL(
+    "/parts_index.json",
+    context.request.url
+  );
+
   const asset = await context.env.ASSETS.fetch(assetUrl);
-  if (!asset.ok) return json({ error: "Catalog unavailable" }, 503);
+
+  if (!asset.ok) {
+    return json(
+      { error: "Catalog unavailable" },
+      503,
+      {
+        "Cache-Control": "no-store",
+      }
+    );
+  }
+
   const data = await asset.json().catch(() => null);
-  const parts = Array.isArray(data?.parts) ? data.parts : [];
+
+  if (!data || !Array.isArray(data.parts)) {
+    return json(
+      { error: "Catalog unavailable" },
+      503,
+      {
+        "Cache-Control": "no-store",
+      }
+    );
+  }
+
   const needle = q.toLowerCase();
-  const rows = parts.map(x => ({
-    pn: String(x.part_number ?? x.pn ?? "").trim(),
-    nomenclature: String(x.nomenclature ?? x.title ?? "").trim(),
-    title: String(x.title ?? x.nomenclature ?? "").trim(),
-  })).filter(x => `${x.pn} ${x.nomenclature} ${x.title}`.toLowerCase().includes(needle)).slice(0, MAX_RESULTS);
-  return json({ parts: rows });
+
+  const parts = data.parts
+    .map((item) => {
+      const pn = clean(
+        item.part_number ?? item.pn
+      );
+
+      const nomenclature = clean(
+        item.nomenclature ?? item.title
+      );
+
+      return {
+        pn,
+        nomenclature,
+      };
+    })
+    .filter((item) => {
+      const searchable =
+        `${item.pn} ${item.nomenclature}`.toLowerCase();
+
+      return searchable.includes(needle);
+    })
+    .filter((item) => item.pn || item.nomenclature)
+    .slice(0, MAX_RESULTS);
+
+  return json(
+    { parts },
+    200,
+    {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+    }
+  );
 }
