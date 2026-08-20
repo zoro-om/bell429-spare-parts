@@ -1,9 +1,9 @@
 const BLOCKED_PATHS = [
   /^\/\.git(?:\/|$)/i,
   /\.map$/i,
+  /^\/parts_index\.json$/i,
   /^\/bell429_ipb(?:\/|$)/i,
   /\.pdf$/i,
-  /^\/parts_index\.json$/i,
 ];
 
 const SECURITY_HEADERS = {
@@ -31,7 +31,6 @@ const SECURITY_HEADERS = {
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  // Block sensitive files and directories.
   if (BLOCKED_PATHS.some((re) => re.test(url.pathname))) {
     return new Response("Not found", {
       status: 404,
@@ -39,48 +38,35 @@ export async function onRequest(context) {
     });
   }
 
-  // Continue to the requested asset/function.
   const response = await context.next();
-
   const headers = new Headers(response.headers);
 
-  // Apply security headers to every response.
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     headers.set(key, value);
   }
 
   const contentType = headers.get("content-type") || "";
 
-  // Protect HTML responses and load the secure application layer.
-  if (contentType.includes("text/html")) {
-    const rewritten = new HTMLRewriter()
-      .on("script", {
-        element(el) {
-          // Remove inline/existing scripts.
-          // The application script is injected below.
-          el.remove();
-        },
-      })
-      .on("body", {
-        element(el) {
-          el.append(
-            '<script src="/secure-app.js" defer></script>',
-            { html: true }
-          );
-        },
-      })
-      .transform(
-        new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        })
-      );
-
-    return rewritten;
+  if (!contentType.includes("text/html")) {
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
 
-  return new Response(response.body, {
+  const html = await response.text();
+
+  const scriptTag =
+    '<script src="/secure-app.js" defer></script>';
+
+  const finalHtml = html.includes("</body>")
+    ? html.replace("</body>", `${scriptTag}</body>`)
+    : `${html}${scriptTag}`;
+
+  headers.set("content-type", "text/html; charset=UTF-8");
+
+  return new Response(finalHtml, {
     status: response.status,
     statusText: response.statusText,
     headers,
