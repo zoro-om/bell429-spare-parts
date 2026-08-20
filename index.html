@@ -929,12 +929,50 @@ function v14OpenLogin(){
 }
 function v14CloseLogin(){document.getElementById("v14Login").classList.remove("show")}
 
-function v14Login(){
- const u=document.getElementById("v14LoginUser").value.trim(),p=document.getElementById("v14LoginPass").value;
- if(u===V14_DESIGNER_USER && p===V14_DESIGNER_PASS){v14User={user:u,role:"designer",permissions:{}};v16SetPresence(v14User.user);v16UpdateOnlineBadge();v14CloseLogin();v18RefreshSupervisorTools();v14OpenDesignerPanel();return}
- const rec=v14Users().find(x=>x.user===u && x.password===p);
- if(rec){v14User={...rec,role:"supervisor"};v16SetPresence(v14User.user);v16UpdateOnlineBadge();v14CloseLogin();v18RefreshSupervisorTools();v14OpenDesignerPanel();return}
- document.getElementById("v14LoginMsg").textContent="اسم المستخدم أو كلمة المرور غير صحيحة.";
+async function v14Login(){
+ const u=document.getElementById("v14LoginUser").value.trim();
+ const p=document.getElementById("v14LoginPass").value;
+ const msg=document.getElementById("v14LoginMsg");
+
+ if(!u||!p){
+   msg.textContent="اسم المستخدم وكلمة المرور مطلوبان.";
+   return;
+ }
+
+ msg.textContent="جارٍ التحقق…";
+
+ try{
+   const r=await fetch("/api/auth/login",{
+     method:"POST",
+     headers:{"content-type":"application/json"},
+     credentials:"same-origin",
+     body:JSON.stringify({username:u,password:p})
+   });
+
+   const data=await r.json().catch(()=>({}));
+
+   if(!r.ok||!data?.ok||!data?.user){
+     msg.textContent="اسم المستخدم أو كلمة المرور غير صحيحة.";
+     return;
+   }
+
+   window.v14CsrfToken=String(data.csrfToken||"");
+
+   v14User={
+     user:data.user.username,
+     role:data.user.role,
+     permissions:data.user.permissions||{}
+   };
+
+   v16SetPresence(v14User.user);
+   v16UpdateOnlineBadge();
+   v14CloseLogin();
+   v18RefreshSupervisorTools();
+   v14OpenDesignerPanel();
+
+ }catch(e){
+   msg.textContent="تعذر الاتصال بخادم المصادقة.";
+ }
 }
 
 function v14OpenForgotPassword(){
