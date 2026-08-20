@@ -1,7 +1,6 @@
 const BLOCKED_PATHS = [
   /^\/\.git(?:\/|$)/i,
   /\.map$/i,
-  /^\/parts_index\.json$/i,
   /^\/bell429_ipb(?:\/|$)/i,
   /\.pdf$/i,
 ];
@@ -14,40 +13,56 @@ const SECURITY_HEADERS = {
     "camera=(), microphone=(), geolocation=(), payment=()",
   "Strict-Transport-Security":
     "max-age=63072000; includeSubDomains; preload",
-  "Content-Security-Policy":
-    "default-src 'self'; " +
-    "base-uri 'self'; " +
-    "object-src 'none'; " +
-    "frame-ancestors 'none'; " +
-    "form-action 'self'; " +
-    "img-src 'self' data:; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "script-src 'self'; " +
-    "script-src-attr 'none'; " +
-    "connect-src 'self'; " +
-    "font-src 'self' data:;",
 };
 
-export async function onRequest(context) {
-  const url = new URL(context.request.url);
+function createNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
 
-  if (BLOCKED_PATHS.some((re) => re.test(url.pathname))) {
-    return new Response("Not found", {
-      status: 404,
-      headers: SECURITY_HEADERS,
-    });
-  }
-
-  const response = await context.next();
-  const headers = new Headers(response.headers);
+function setSecurityHeaders(headers, nonce = null) {
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self'${nonce ? ` 'nonce-${nonce}'` : ""}`,
+    "script-src-attr 'none'",
+    "connect-src 'self'",
+    "font-src 'self' data:",
+  ].join("; ");
 
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     headers.set(key, value);
   }
 
+  headers.set("Content-Security-Policy", csp);
+}
+
+export async function onRequest(context) {
+  const url = new URL(context.request.url);
+
+  if (BLOCKED_PATHS.some((re) => re.test(url.pathname))) {
+    const headers = new Headers();
+    setSecurityHeaders(headers);
+
+    return new Response("Not found", {
+      status: 404,
+      headers,
+    });
+  }
+
+  const response = await context.next();
+  const headers = new Headers(response.headers);
   const contentType = headers.get("content-type") || "";
 
   if (!contentType.includes("text/html")) {
+    setSecurityHeaders(headers);
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -55,20 +70,31 @@ export async function onRequest(context) {
     });
   }
 
-  const html = await response.text();
+  const nonce = createNonce();
 
-  const scriptTag =
-    '<script src="/secure-app.js" defer></script>';
+  setSecurityHeaders(headers, nonce);
 
-  const finalHtml = html.includes("</body>")
-    ? html.replace("</body>", `${scriptTag}</body>`)
-    : `${html}${scriptTag}`;
+  const rewritten = new HTMLRewriter()
+    .on("script", {
+      element(el) {
+        el.setAttribute("nonce", nonce);
+      },
+    })
+    .on("body", {
+      element(el) {
+        el.append(
+          `<script src="/secure-app.js" nonce="${nonce}" defer></script>`,
+          { html: true }
+        );
+      },
+    })
+    .transform(
+      new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
+    );
 
-  headers.set("content-type", "text/html; charset=UTF-8");
-
-  return new Response(finalHtml, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  return rewritten;
 }
