@@ -3,7 +3,6 @@ const BLOCKED_PATHS = [
   /\.map$/i,
   /^\/bell429_ipb(?:\/|$)/i,
   /\.pdf$/i,
-  /^\/parts_index\.json$/i,
 ];
 
 const SECURITY_HEADERS = {
@@ -14,75 +13,88 @@ const SECURITY_HEADERS = {
     "camera=(), microphone=(), geolocation=(), payment=()",
   "Strict-Transport-Security":
     "max-age=63072000; includeSubDomains; preload",
-  "Content-Security-Policy":
-    "default-src 'self'; " +
-    "base-uri 'self'; " +
-    "object-src 'none'; " +
-    "frame-ancestors 'none'; " +
-    "form-action 'self'; " +
-    "img-src 'self' data:; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "script-src 'self'; " +
-    "script-src-attr 'none'; " +
-    "connect-src 'self'; " +
-    "font-src 'self' data:;",
 };
 
-export async function onRequest(context) {
-  const url = new URL(context.request.url);
+function createNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
 
-  // Block sensitive files and directories.
-  if (BLOCKED_PATHS.some((re) => re.test(url.pathname))) {
-    return new Response("Not found", {
-      status: 404,
-      headers: SECURITY_HEADERS,
-    });
-  }
+function setSecurityHeaders(headers, nonce = null) {
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self'${nonce ? ` 'nonce-${nonce}'` : ""}`,
+    "script-src-attr 'none'",
+    "connect-src 'self'",
+    "font-src 'self' data:",
+  ].join("; ");
 
-  // Continue to the requested asset/function.
-  const response = await context.next();
-
-  const headers = new Headers(response.headers);
-
-  // Apply security headers to every response.
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     headers.set(key, value);
   }
 
-  const contentType = headers.get("content-type") || "";
+  headers.set("Content-Security-Policy", csp);
+}
 
-  // Protect HTML responses and load the secure application layer.
-  if (contentType.includes("text/html")) {
-    const rewritten = new HTMLRewriter()
-      .on("script", {
-        element(el) {
-          // Remove inline/existing scripts.
-          // The application script is injected below.
-          el.remove();
-        },
-      })
-      .on("body", {
-        element(el) {
-          el.append(
-            '<script src="/secure-app.js" defer></script>',
-            { html: true }
-          );
-        },
-      })
-      .transform(
-        new Response(response.body, {
-          status: response.status,
-          statusText: response.statusText,
-          headers,
-        })
-      );
+export async function onRequest(context) {
+  const url = new URL(context.request.url);
 
-    return rewritten;
+  if (BLOCKED_PATHS.some((re) => re.test(url.pathname))) {
+    const headers = new Headers();
+    setSecurityHeaders(headers);
+
+    return new Response("Not found", {
+      status: 404,
+      headers,
+    });
   }
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  const response = await context.next();
+  const headers = new Headers(response.headers);
+  const contentType = headers.get("content-type") || "";
+
+  if (!contentType.includes("text/html")) {
+    setSecurityHeaders(headers);
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  const nonce = createNonce();
+
+  setSecurityHeaders(headers, nonce);
+
+  const rewritten = new HTMLRewriter()
+    .on("script", {
+      element(el) {
+        el.setAttribute("nonce", nonce);
+      },
+    })
+    .on("body", {
+      element(el) {
+        el.append(
+          `<script src="/secure-app.js" nonce="${nonce}" defer></script>`,
+          { html: true }
+        );
+      },
+    })
+    .transform(
+      new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
+    );
+
+  return rewritten;
 }
