@@ -300,6 +300,80 @@ async function getOrder(
 export async function onRequestGet(
   context
 ) {
+  const url = new URL(context.request.url);
+  const id = url.searchParams.get("id");
+
+  /*
+   * Public tracking:
+   * GET /api/orders?id=<order-id>
+   *
+   * No admin session is required.
+   * Only tracking-safe fields are returned.
+   */
+  if (id) {
+    const order = await getOrder(
+      context.env,
+      id,
+      false
+    );
+
+    if (!order) {
+      return json(
+        { error: "Order not found" },
+        404,
+        {
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "no-referrer"
+        }
+      );
+    }
+
+    const publicOrder = {
+      id: order.id,
+      orderNo: order.orderNo,
+      pn: order.pn,
+      partName: order.partName,
+      requestDate: order.requestDate,
+      qty: order.qty,
+      type: order.type,
+      urgent: !!order.urgent,
+
+      stages: Array.isArray(order.stages)
+        ? order.stages
+            .slice(0, STAGES)
+            .map((s) => ({
+              done: !!s.done,
+              rejected: !!s.rejected,
+
+              rejectionReason: String(
+                s.rejectionReason || ""
+              ).slice(0, 1000),
+
+              date: String(
+                s.date || ""
+              ).slice(0, 20)
+            }))
+        : [],
+
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt
+    };
+
+    return json(
+      publicOrder,
+      200,
+      {
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer"
+      }
+    );
+  }
+
+  /*
+   * Full list remains ADMIN ONLY.
+   */
   const auth =
     await requireSession(
       context.request,
@@ -461,6 +535,7 @@ export async function onRequestPost(
       },
       201
     );
+
   } catch (e) {
     return json(
       {
@@ -579,6 +654,7 @@ export async function onRequestPut(
         existing.createdAt,
       updatedAt: now
     });
+
   } catch (e) {
     return json(
       {
