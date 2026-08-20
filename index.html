@@ -724,7 +724,7 @@ const V14_USERS_KEY="bell429_supervisors";
 const V14_VISITOR_KEY="bell429_visitor_ids";
 const V14_CATALOG_KEY="bell429_catalog_override_v14";
 const V14_ONLINE_KEY="bell429_online_supervisors_v16";
-const V14_SESSION_ID="sup-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+const V14_SESSION_ID="sup-"+crypto.randomUUID();
 let v14User=null;
 
 function v14Esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
