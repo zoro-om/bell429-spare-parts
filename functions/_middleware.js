@@ -8,18 +8,12 @@ const BLOCKED_PATHS = [
 
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
-
   "X-Frame-Options": "DENY",
-
-  "Referrer-Policy":
-    "strict-origin-when-cross-origin",
-
+  "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy":
     "camera=(), microphone=(), geolocation=(), payment=()",
-
   "Strict-Transport-Security":
     "max-age=63072000; includeSubDomains; preload",
-
   "Content-Security-Policy":
     "default-src 'self'; " +
     "base-uri 'self'; " +
@@ -35,54 +29,35 @@ const SECURITY_HEADERS = {
 };
 
 export async function onRequest(context) {
-  const url = new URL(
-    context.request.url
-  );
+  const url = new URL(context.request.url);
 
   if (
-    BLOCKED_PATHS.some(
-      (re) => re.test(url.pathname)
+    BLOCKED_PATHS.some((re) =>
+      re.test(url.pathname)
     )
   ) {
-    return new Response(
-      "Not found",
-      {
-        status: 404,
-        headers: SECURITY_HEADERS,
-      }
-    );
+    return new Response("Not found", {
+      status: 404,
+      headers: SECURITY_HEADERS,
+    });
   }
 
-  const response =
-    await context.next();
+  const response = await context.next();
 
-  const headers =
-    new Headers(
-      response.headers
-    );
+  const headers = new Headers(
+    response.headers
+  );
 
-  for (
-    const [key, value]
-    of Object.entries(
-      SECURITY_HEADERS
-    )
-  ) {
-    headers.set(
-      key,
-      value
-    );
+  for (const [key, value] of Object.entries(
+    SECURITY_HEADERS
+  )) {
+    headers.set(key, value);
   }
 
   const contentType =
-    headers.get(
-      "content-type"
-    ) || "";
+    headers.get("content-type") || "";
 
-  if (
-    contentType.includes(
-      "text/html"
-    )
-  ) {
+  if (contentType.includes("text/html")) {
     const rewritten =
       new HTMLRewriter()
 
@@ -96,59 +71,41 @@ export async function onRequest(context) {
           element(el) {
 
             /*
-             * أولًا: إنشاء نافذة Login
-             * من ui-bindings.js
+             * مهم:
+             * تغيير رقم النسخة يجبر الهاتف وCloudflare
+             * على تحميل ملفات JavaScript الجديدة.
              */
+
             el.append(
-              '<script src="/ui-bindings.js?v=20260821-3" defer></script>',
+              '<script src="/ui-bindings.js?v=20260821-4" defer></script>',
               {
-                html: true
+                html: true,
               }
             );
 
-            /*
-             * ثانيًا: secure-app.js
-             * سيرى عناصر Login موجودة بالفعل
-             * ويربط handlers الخاصة به.
-             */
             el.append(
-              '<script src="/secure-app.js?v=20260821-3" defer></script>',
+              '<script src="/secure-app.js?v=20260821-4" defer></script>',
               {
-                html: true
+                html: true,
               }
             );
-
           },
         })
 
         .transform(
-          new Response(
-            response.body,
-            {
-              status:
-                response.status,
-
-              statusText:
-                response.statusText,
-
-              headers,
-            }
-          )
+          new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          })
         );
 
     return rewritten;
   }
 
-  return new Response(
-    response.body,
-    {
-      status:
-        response.status,
-
-      statusText:
-        response.statusText,
-
-      headers,
-    }
-  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
