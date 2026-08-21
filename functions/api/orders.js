@@ -300,79 +300,121 @@ async function getOrder(
 export async function onRequestGet(
   context
 ) {
-  const url = new URL(context.request.url);
-  const id = url.searchParams.get("id");
+  const url =
+    new URL(
+      context.request.url
+    );
+
+  const id =
+    url.searchParams.get(
+      "id"
+    );
 
   /*
    * Public tracking:
    * GET /api/orders?id=<order-id>
    *
    * No admin session is required.
-   * Only tracking-safe fields are returned.
    */
   if (id) {
-    const order = await getOrder(
-      context.env,
-      id,
-      false
-    );
+    const order =
+      await getOrder(
+        context.env,
+        id,
+        false
+      );
 
     if (!order) {
       return json(
-        { error: "Order not found" },
+        {
+          error:
+            "Order not found"
+        },
         404,
         {
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Referrer-Policy": "no-referrer"
+          "Cache-Control":
+            "no-store",
+          "X-Content-Type-Options":
+            "nosniff",
+          "Referrer-Policy":
+            "no-referrer"
         }
       );
     }
 
     const publicOrder = {
       id: order.id,
-      orderNo: order.orderNo,
+      orderNo:
+        order.orderNo,
       pn: order.pn,
-      partName: order.partName,
-      requestDate: order.requestDate,
+      partName:
+        order.partName,
+      requestDate:
+        order.requestDate,
       qty: order.qty,
       type: order.type,
-      urgent: !!order.urgent,
+      urgent:
+        !!order.urgent,
 
-      stages: Array.isArray(order.stages)
-        ? order.stages
-            .slice(0, STAGES)
-            .map((s) => ({
-              done: !!s.done,
-              rejected: !!s.rejected,
+      stages:
+        Array.isArray(
+          order.stages
+        )
+          ? order.stages
+              .slice(
+                0,
+                STAGES
+              )
+              .map((s) => ({
+                done:
+                  !!s.done,
 
-              rejectionReason: String(
-                s.rejectionReason || ""
-              ).slice(0, 1000),
+                rejected:
+                  !!s.rejected,
 
-              date: String(
-                s.date || ""
-              ).slice(0, 20)
-            }))
-        : [],
+                rejectionReason:
+                  String(
+                    s.rejectionReason ||
+                      ""
+                  ).slice(
+                    0,
+                    1000
+                  ),
 
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
+                date:
+                  String(
+                    s.date || ""
+                  ).slice(
+                    0,
+                    20
+                  )
+              }))
+          : [],
+
+      createdAt:
+        order.createdAt,
+
+      updatedAt:
+        order.updatedAt
     };
 
     return json(
       publicOrder,
       200,
       {
-        "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer"
+        "Cache-Control":
+          "no-store",
+        "X-Content-Type-Options":
+          "nosniff",
+        "Referrer-Policy":
+          "no-referrer"
       }
     );
   }
 
   /*
-   * Full list remains ADMIN ONLY.
+   * Full order list:
+   * requires authentication + index permission.
    */
   const auth =
     await requireSession(
@@ -383,6 +425,21 @@ export async function onRequestGet(
 
   if (auth.response)
     return auth.response;
+
+  if (
+    !hasPermission(
+      auth.session,
+      "index"
+    )
+  ) {
+    return json(
+      {
+        error:
+          "Forbidden"
+      },
+      403
+    );
+  }
 
   const rows =
     await context.env.DB
@@ -409,8 +466,6 @@ export async function onRequestGet(
 /*
  * إنشاء طلب جديد:
  * PUBLIC
- *
- * لا يحتاج تسجيل دخول.
  *
  * الحماية:
  * - Origin check
@@ -507,14 +562,6 @@ export async function onRequestPost(
       )
       .run();
 
-    /*
-     * user_id = null لأن
-     * إنشاء الطلب العام
-     * لا يملك جلسة مشرف.
-     *
-     * audit_log يسمح بذلك
-     * في قاعدة البيانات الحالية.
-     */
     await context.env.DB
       .prepare(
         "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
@@ -552,7 +599,9 @@ export async function onRequestPost(
 
 /*
  * تعديل طلب موجود:
- * يحتاج تسجيل دخول.
+ * يحتاج تسجيل دخول
+ * + صلاحية index
+ * + CSRF.
  */
 export async function onRequestPut(
   context
@@ -566,6 +615,29 @@ export async function onRequestPut(
 
   if (auth.response)
     return auth.response;
+
+  /*
+   * SECURITY FIX:
+   * لا يكفي أن يكون المستخدم
+   * مسجلاً للدخول.
+   *
+   * يجب أن يمتلك صلاحية
+   * index لإدارة الطلبات.
+   */
+  if (
+    !hasPermission(
+      auth.session,
+      "index"
+    )
+  ) {
+    return json(
+      {
+        error:
+          "Forbidden"
+      },
+      403
+    );
+  }
 
   const id =
     new URL(
