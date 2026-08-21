@@ -57,12 +57,12 @@ export async function onRequest(context) {
       .on("body", {
         element(el) {
           el.append(
-            '<script src="/secure-app.js" defer></script>',
+            '<script src="/secure-app.js?v=20260821-2" defer></script>',
             { html: true }
           );
 
           el.append(
-            '<script src="/ui-bindings.js" defer></script>',
+            '<script src="/ui-bindings.js?v=20260821-2" defer></script>',
             { html: true }
           );
         },
