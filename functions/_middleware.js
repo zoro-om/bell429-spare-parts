@@ -8,8 +8,11 @@ const BLOCKED_PATHS = [
 
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
+
   "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
+
+  "Referrer-Policy":
+    "strict-origin-when-cross-origin",
 
   "Permissions-Policy":
     "camera=(), microphone=(), geolocation=(), payment=()",
@@ -82,6 +85,13 @@ export async function onRequest(context) {
 
         .on("script", {
           element(el) {
+            /*
+             * Remove old/legacy script tags.
+             *
+             * The secure architecture loads
+             * only the two controlled scripts
+             * below.
+             */
             el.remove();
           },
         })
@@ -90,21 +100,22 @@ export async function onRequest(context) {
           element(el) {
 
             /*
-             * VERSION 5
+             * VERSION 6
              *
-             * تغيير النسخة مهم جدًا
-             * لكسر Cache الهاتف وCloudflare.
+             * Important:
+             * This forces Cloudflare/mobile browsers
+             * to request the new JavaScript files.
              */
 
             el.append(
-              '<script src="/ui-bindings.js?v=20260821-5" defer></script>',
+              '<script src="/ui-bindings.js?v=20260821-6" defer></script>',
               {
                 html: true,
               }
             );
 
             el.append(
-              '<script src="/secure-app.js?v=20260821-5" defer></script>',
+              '<script src="/secure-app.js?v=20260821-6" defer></script>',
               {
                 html: true,
               }
