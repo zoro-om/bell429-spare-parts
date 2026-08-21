@@ -1,31 +1,13 @@
 (() => {
   "use strict";
 
-  /*
-   * Bell 429 — UI bindings
-   * -----------------------------------------
-   * هذا الملف مسؤول فقط عن ربط واجهة المستخدم
-   * بالبنية الآمنة الجديدة.
-   *
-   * لا يحتوي:
-   * - كلمات مرور
-   * - بيانات اعتماد
-   * - localStorage authentication
-   * - صلاحيات مزيفة
-   *
-   * المصادقة الحقيقية تتم عبر:
-   * /api/auth/login
-   * /api/auth/me
-   * /api/auth/logout
-   */
-
   const $ = (id) => document.getElementById(id);
 
-  function showLogin() {
+  function openLogin() {
     const modal = $("v14Login");
 
     if (!modal) {
-      console.error("Bell429: v14Login modal not found");
+      console.error("Bell429: v14Login not found");
       return;
     }
 
@@ -33,6 +15,10 @@
 
     const user = $("v14LoginUser");
     const pass = $("v14LoginPass");
+    const loginButton = $("v14LoginBtn");
+    const logoutButton = $("v14LoginLogout");
+    const closeButton = $("v14LoginClose");
+    const message = $("v14LoginMsg");
 
     if (user) {
       user.disabled = false;
@@ -42,10 +28,6 @@
     if (pass) {
       pass.disabled = false;
     }
-
-    const loginButton = $("v14LoginBtn");
-    const logoutButton = $("v14LoginLogout");
-    const closeButton = $("v14LoginClose");
 
     if (loginButton) {
       loginButton.style.display = "inline-flex";
@@ -60,8 +42,6 @@
       closeButton.style.display = "inline-flex";
     }
 
-    const message = $("v14LoginMsg");
-
     if (message) {
       message.textContent = "";
     }
@@ -72,9 +52,8 @@
   }
 
   /*
-   * لا نستخدم onclick داخل HTML.
-   * event delegation يجعل الزر يعمل حتى لو
-   * تم إنشاء/إعادة رسم العنصر لاحقًا.
+   * Navigation
+   * جميع أزرار data-page يتم توصيلها بـ showPage()
    */
   document.addEventListener(
     "click",
@@ -84,32 +63,118 @@
       if (!target) return;
 
       /*
-       * دخول المشرفين
+       * أزرار التنقل الرئيسية
        */
-      const loginNav = target.closest(
-        "#secureLoginNav, #v14AdminNav"
+      const navButton = target.closest(
+        ".nav button[data-page]"
       );
 
-      if (loginNav) {
+      if (navButton) {
         event.preventDefault();
-        event.stopPropagation();
 
-        showLogin();
+        const page = navButton.dataset.page;
+
+        if (
+          page &&
+          typeof window.showPage === "function"
+        ) {
+          window.showPage(page);
+        }
+
+        return;
+      }
+
+      /*
+       * دخول المشرفين
+       */
+      const loginButton = target.closest(
+        "#secureLoginNav, #v14AdminNav, #secureAdminNav"
+      );
+
+      if (loginButton) {
+        event.preventDefault();
+
+        /*
+         * إذا كان زر لوحة المصمم بعد تسجيل الدخول
+         * افتح الصفحة مباشرة.
+         */
+        if (
+          loginButton.id === "secureAdminNav" &&
+          typeof window.showPage === "function"
+        ) {
+          window.showPage("admin");
+          return;
+        }
+
+        openLogin();
         return;
       }
 
       /*
        * إغلاق نافذة الدخول
        */
-      const close = target.closest(
+      const closeButton = target.closest(
         "#v14LoginClose"
       );
 
-      if (close) {
+      if (closeButton) {
         event.preventDefault();
-        event.stopPropagation();
-
         closeLogin();
+        return;
+      }
+
+      /*
+       * تسجيل الدخول
+       */
+      const submitLogin = target.closest(
+        "#v14LoginBtn"
+      );
+
+      if (submitLogin) {
+        event.preventDefault();
+
+        if (
+          typeof window.__bell429Login ===
+          "function"
+        ) {
+          window.__bell429Login();
+        }
+
+        return;
+      }
+
+      /*
+       * تسجيل الخروج
+       */
+      const logoutButton = target.closest(
+        "#v14LoginLogout"
+      );
+
+      if (logoutButton) {
+        event.preventDefault();
+
+        if (
+          typeof window.__bell429Logout ===
+          "function"
+        ) {
+          window.__bell429Logout();
+        }
+
+        return;
+      }
+
+      /*
+       * زر إنشاء الطلب
+       *
+       * مهم:
+       * لا نفتح تسجيل الدخول هنا.
+       *
+       * إنشاء طلب جديد Public.
+       * secure-app.js هو المسؤول عن saveOrder().
+       */
+      const saveButton = target.closest("#save");
+
+      if (saveButton) {
         return;
       }
     },
@@ -117,8 +182,7 @@
   );
 
   /*
-   * منع إرسال نموذج الدخول بطريقة HTML التقليدية.
-   * secure-app.js هو المسؤول عن POST الحقيقي.
+   * نموذج تسجيل الدخول فقط
    */
   document.addEventListener(
     "submit",
@@ -133,48 +197,20 @@
         )
       ) {
         event.preventDefault();
+
+        if (
+          typeof window.__bell429Login ===
+          "function"
+        ) {
+          window.__bell429Login();
+        }
       }
     },
     true
   );
 
   /*
-   * زر إنشاء الطلب:
-   *
-   * مهم جدًا:
-   * لا نتحقق من وجود المشرف هنا.
-   *
-   * secure-app.js يقوم بتحديد:
-   * POST  = إنشاء طلب عام
-   * PUT   = تعديل طلب يحتاج جلسة
-   *
-   * لذلك لا يجب أن تقوم الواجهة بإجبار
-   * المستخدم على تسجيل الدخول عند إنشاء طلب جديد.
-   */
-  document.addEventListener(
-    "click",
-    (event) => {
-      const target = event.target;
-
-      if (!target) return;
-
-      const saveButton = target.closest("#save");
-
-      if (!saveButton) return;
-
-      /*
-       * إذا كان الزر هو زر إنشاء/حفظ الطلب،
-       * نترك secure-app.js يعالج العملية.
-       *
-       * لا نفتح login هنا.
-       */
-      return;
-    },
-    true
-  );
-
-  /*
-   * معالجة Enter داخل حقول تسجيل الدخول.
+   * Enter داخل بيانات الدخول
    */
   document.addEventListener(
     "keydown",
@@ -206,36 +242,80 @@
   );
 
   /*
-   * إذا كانت نافذة الدخول موجودة مسبقًا،
-   * نتأكد أنها لا تظهر تلقائيًا.
+   * نربط دوال secure-app.js بعد تحميله.
+   *
+   * secure-app.js يحتوي login() و logout().
+   * نعرضهما للواجهة بدون تخزين أي بيانات اعتماد.
    */
-  function normalizeLoginModal() {
+  function connectSecureApp() {
+    if (
+      typeof window.login === "function"
+    ) {
+      window.__bell429Login =
+        window.login;
+    }
+
+    if (
+      typeof window.logout === "function"
+    ) {
+      window.__bell429Logout =
+        window.logout;
+    }
+  }
+
+  /*
+   * secure-app.js يتم تحميله أيضًا بواسطة middleware
+   * لذلك نحاول الربط بعد DOM ثم نعيد المحاولة عدة مرات.
+   */
+  connectSecureApp();
+
+  let attempts = 0;
+
+  const timer = setInterval(() => {
+    connectSecureApp();
+
+    attempts++;
+
+    if (
+      attempts >= 40 ||
+      (
+        typeof window.__bell429Login ===
+          "function" &&
+        typeof window.__bell429Logout ===
+          "function"
+      )
+    ) {
+      clearInterval(timer);
+    }
+  }, 250);
+
+  /*
+   * تأكد من أن نافذة الدخول مغلقة عند البداية.
+   */
+  function normalizeLogin() {
     const modal = $("v14Login");
 
     if (!modal) return;
 
-    /*
-     * لا نغير class إذا كانت مفتوحة عمدًا.
-     */
     if (!modal.classList.contains("show")) {
       modal.classList.remove("show");
     }
   }
 
-  /*
-   * تشغيل بعد اكتمال DOM.
-   */
-  if (document.readyState === "loading") {
+  if (
+    document.readyState ===
+    "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
-      normalizeLoginModal,
+      normalizeLogin,
       { once: true }
     );
   } else {
-    normalizeLoginModal();
+    normalizeLogin();
   }
 
   console.info(
-    "Bell429 UI bindings loaded successfully."
+    "Bell429 UI bindings loaded."
   );
 })();
