@@ -3,11 +3,247 @@
 
   const $ = (id) => document.getElementById(id);
 
+  /*
+   * ============================================================
+   * Bell429 Secure UI Bindings
+   * ============================================================
+   * - Creates the login modal if index.html does not contain it.
+   * - Handles supervisor login/logout.
+   * - Handles navigation.
+   * - Does NOT require supervisor login to create a new order.
+   * ============================================================
+   */
+
+  function ensureLoginModal() {
+    if ($("v14Login")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+
+    style.id = "bell429-secure-login-style";
+
+    style.textContent = `
+      #v14Login {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(3, 15, 25, .72);
+        backdrop-filter: blur(5px);
+      }
+
+      #v14Login.show {
+        display: flex;
+      }
+
+      #v14Login .bell429-login-modal {
+        width: min(100%, 430px);
+        background: #fff;
+        color: #142a3a;
+        border-radius: 16px;
+        border: 1px solid #dbe4ea;
+        box-shadow: 0 25px 80px rgba(0,0,0,.35);
+        padding: 20px;
+        direction: rtl;
+      }
+
+      #v14Login h3 {
+        margin: 0 0 7px;
+        font-size: 20px;
+      }
+
+      #v14Login .bell429-login-hint {
+        margin: 0 0 16px;
+        color: #6c7d89;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+
+      #v14Login .bell429-login-field {
+        margin-bottom: 12px;
+      }
+
+      #v14Login label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      #v14Login input {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #cfdbe3;
+        border-radius: 9px;
+        padding: 11px 12px;
+        background: #fff;
+        color: #142a3a;
+        outline: none;
+        font-size: 14px;
+      }
+
+      #v14Login input:focus {
+        border-color: #0e5b8d;
+        box-shadow: 0 0 0 3px rgba(14,91,141,.12);
+      }
+
+      #v14LoginMsg {
+        min-height: 20px;
+        margin: 8px 0;
+        color: #a51d2c;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      #v14Login .bell429-login-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      #v14Login button {
+        border: 0;
+        border-radius: 9px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      #v14LoginBtn {
+        background: #e51f43;
+        color: #fff;
+      }
+
+      #v14LoginClose {
+        background: #edf3f7;
+        color: #071b2b;
+      }
+
+      #v14LoginLogout {
+        background: #fff0f2;
+        color: #9a1831;
+        border: 1px solid #efc3cc !important;
+      }
+
+      #v14Login button:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+      }
+
+      @media(max-width:600px) {
+        #v14Login {
+          padding: 12px;
+        }
+
+        #v14Login .bell429-login-modal {
+          padding: 17px;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+
+    const modal = document.createElement("div");
+
+    modal.id = "v14Login";
+
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "bell429LoginTitle");
+
+    modal.innerHTML = `
+      <div class="bell429-login-modal">
+
+        <h3 id="bell429LoginTitle">
+          🔐 دخول المشرفين
+        </h3>
+
+        <p class="bell429-login-hint">
+          أدخل اسم المستخدم وكلمة المرور الخاصة بالحساب الإداري.
+        </p>
+
+        <div class="bell429-login-field">
+          <label for="v14LoginUser">
+            اسم المستخدم
+          </label>
+
+          <input
+            id="v14LoginUser"
+            type="text"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          >
+        </div>
+
+        <div class="bell429-login-field">
+          <label for="v14LoginPass">
+            كلمة المرور
+          </label>
+
+          <input
+            id="v14LoginPass"
+            type="password"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <div id="v14LoginMsg"></div>
+
+        <div class="bell429-login-actions">
+
+          <button
+            type="button"
+            id="v14LoginBtn"
+          >
+            دخول
+          </button>
+
+          <button
+            type="button"
+            id="v14LoginClose"
+          >
+            إلغاء
+          </button>
+
+          <button
+            type="button"
+            id="v14LoginLogout"
+            style="display:none"
+          >
+            🚪 تسجيل الخروج
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeLogin();
+      }
+    });
+  }
+
   function openLogin() {
+    ensureLoginModal();
+
     const modal = $("v14Login");
 
     if (!modal) {
-      console.error("Bell429: v14Login not found");
+      console.error(
+        "Bell429: login modal could not be created"
+      );
+
       return;
     }
 
@@ -31,6 +267,7 @@
 
     if (pass) {
       pass.disabled = false;
+      pass.value = "";
     }
 
     if (loginButton) {
@@ -52,13 +289,18 @@
   }
 
   async function performLogin() {
+    ensureLoginModal();
+
     const userEl = $("v14LoginUser");
     const passEl = $("v14LoginPass");
     const button = $("v14LoginBtn");
     const message = $("v14LoginMsg");
 
-    const username = userEl?.value?.trim() || "";
-    const password = passEl?.value || "";
+    const username =
+      userEl?.value?.trim() || "";
+
+    const password =
+      passEl?.value || "";
 
     if (!username || !password) {
       if (message) {
@@ -84,10 +326,12 @@
         {
           method: "POST",
           credentials: "same-origin",
+
           headers: {
             "Content-Type":
               "application/json"
           },
+
           body: JSON.stringify({
             username,
             password
@@ -116,9 +360,9 @@
       closeLogin();
 
       /*
-       * بعد نجاح الدخول يتم تحديث الصفحة.
-       * secure-app.js سيقرأ الجلسة من
-       * /api/auth/me ويعيد مزامنة الواجهة.
+       * إعادة تحميل الصفحة مهمة هنا:
+       * secure-app.js سيقرأ الجلسة الجديدة
+       * من /api/auth/me.
        */
       window.location.reload();
 
@@ -150,6 +394,9 @@
     window.location.reload();
   }
 
+  /*
+   * Navigation + Login controls
+   */
   document.addEventListener(
     "click",
     (event) => {
@@ -204,7 +451,7 @@
       }
 
       /*
-       * لوحة المصمم بعد الدخول
+       * لوحة المصمم
        */
       const adminNav =
         target.closest(
@@ -226,7 +473,7 @@
       }
 
       /*
-       * إغلاق نافذة الدخول
+       * إغلاق الدخول
        */
       const closeButton =
         target.closest(
@@ -277,14 +524,19 @@
       }
 
       /*
-       * إنشاء الطلب:
-       * لا يتم طلب تسجيل دخول هنا.
-       * secure-app.js يعالج POST العام.
+       * مهم:
+       *
+       * لا نوقف زر إنشاء الطلب.
+       *
+       * secure-app.js هو المسؤول عن:
+       * POST /api/orders
+       *
+       * وإنشاء الطلب الجديد لا يحتاج
+       * إلى جلسة مشرف.
        */
-      const saveButton =
-        target.closest("#save");
-
-      if (saveButton) {
+      if (
+        target.closest("#save")
+      ) {
         return;
       }
     },
@@ -292,13 +544,14 @@
   );
 
   /*
-   * نموذج تسجيل الدخول
+   * Submit login form
    */
   document.addEventListener(
     "submit",
     (event) => {
 
-      const form = event.target;
+      const form =
+        event.target;
 
       if (
         form &&
@@ -324,11 +577,14 @@
     "keydown",
     (event) => {
 
-      if (event.key !== "Enter") {
+      if (
+        event.key !== "Enter"
+      ) {
         return;
       }
 
-      const target = event.target;
+      const target =
+        event.target;
 
       if (!target) {
         return;
@@ -345,28 +601,28 @@
 
         performLogin();
       }
+
+      if (
+        event.key === "Escape" &&
+        target.closest("#v14Login")
+      ) {
+        event.preventDefault();
+
+        closeLogin();
+      }
     },
     true
   );
 
-  function normalizeLogin() {
+  /*
+   * Create the login UI after DOM is available.
+   */
+  function bootBindings() {
+    ensureLoginModal();
 
-    const modal =
-      $("v14Login");
-
-    if (!modal) {
-      return;
-    }
-
-    if (
-      !modal.classList.contains(
-        "show"
-      )
-    ) {
-      modal.classList.remove(
-        "show"
-      );
-    }
+    console.info(
+      "Bell429 secure UI bindings loaded."
+    );
   }
 
   if (
@@ -376,17 +632,13 @@
 
     document.addEventListener(
       "DOMContentLoaded",
-      normalizeLogin,
+      bootBindings,
       { once: true }
     );
 
   } else {
 
-    normalizeLogin();
+    bootBindings();
   }
-
-  console.info(
-    "Bell429 UI bindings loaded."
-  );
 
 })();
