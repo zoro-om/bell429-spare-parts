@@ -20,6 +20,10 @@
     const closeButton = $("v14LoginClose");
     const message = $("v14LoginMsg");
 
+    if (message) {
+      message.textContent = "";
+    }
+
     if (user) {
       user.disabled = false;
       user.focus();
@@ -41,43 +45,141 @@
     if (closeButton) {
       closeButton.style.display = "inline-flex";
     }
-
-    if (message) {
-      message.textContent = "";
-    }
   }
 
   function closeLogin() {
     $("v14Login")?.classList.remove("show");
   }
 
-  /*
-   * Navigation
-   * جميع أزرار data-page يتم توصيلها بـ showPage()
-   */
+  async function performLogin() {
+    const userEl = $("v14LoginUser");
+    const passEl = $("v14LoginPass");
+    const button = $("v14LoginBtn");
+    const message = $("v14LoginMsg");
+
+    const username = userEl?.value?.trim() || "";
+    const password = passEl?.value || "";
+
+    if (!username || !password) {
+      if (message) {
+        message.textContent =
+          "أدخل اسم المستخدم وكلمة المرور.";
+      }
+
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    if (message) {
+      message.textContent =
+        "جاري تسجيل الدخول...";
+    }
+
+    try {
+      const response = await fetch(
+        "/api/auth/login",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            username,
+            password
+          })
+        }
+      );
+
+      const text =
+        await response.text();
+
+      let data = null;
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : null;
+      } catch {}
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+          "فشل تسجيل الدخول"
+        );
+      }
+
+      closeLogin();
+
+      /*
+       * بعد نجاح الدخول يتم تحديث الصفحة.
+       * secure-app.js سيقرأ الجلسة من
+       * /api/auth/me ويعيد مزامنة الواجهة.
+       */
+      window.location.reload();
+
+    } catch (error) {
+
+      if (message) {
+        message.textContent =
+          error?.message ||
+          "فشل تسجيل الدخول";
+      }
+
+      if (button) {
+        button.disabled = false;
+      }
+    }
+  }
+
+  async function performLogout() {
+    try {
+      await fetch(
+        "/api/auth/logout",
+        {
+          method: "POST",
+          credentials: "same-origin"
+        }
+      );
+    } catch {}
+
+    window.location.reload();
+  }
+
   document.addEventListener(
     "click",
     (event) => {
+
       const target = event.target;
 
-      if (!target) return;
+      if (!target) {
+        return;
+      }
 
       /*
-       * أزرار التنقل الرئيسية
+       * Navigation
        */
-      const navButton = target.closest(
-        ".nav button[data-page]"
-      );
+      const navButton =
+        target.closest(
+          ".nav button[data-page]"
+        );
 
       if (navButton) {
-        event.preventDefault();
 
-        const page = navButton.dataset.page;
+        const page =
+          navButton.dataset.page;
 
         if (
           page &&
-          typeof window.showPage === "function"
+          typeof window.showPage ===
+            "function"
         ) {
+          event.preventDefault();
+
           window.showPage(page);
         }
 
@@ -87,58 +189,72 @@
       /*
        * دخول المشرفين
        */
-      const loginButton = target.closest(
-        "#secureLoginNav, #v14AdminNav, #secureAdminNav"
-      );
+      const loginNav =
+        target.closest(
+          "#secureLoginNav, #v14AdminNav"
+        );
 
-      if (loginButton) {
+      if (loginNav) {
+
         event.preventDefault();
 
-        /*
-         * إذا كان زر لوحة المصمم بعد تسجيل الدخول
-         * افتح الصفحة مباشرة.
-         */
+        openLogin();
+
+        return;
+      }
+
+      /*
+       * لوحة المصمم بعد الدخول
+       */
+      const adminNav =
+        target.closest(
+          "#secureAdminNav"
+        );
+
+      if (adminNav) {
+
+        event.preventDefault();
+
         if (
-          loginButton.id === "secureAdminNav" &&
-          typeof window.showPage === "function"
+          typeof window.showPage ===
+          "function"
         ) {
           window.showPage("admin");
-          return;
         }
 
-        openLogin();
         return;
       }
 
       /*
        * إغلاق نافذة الدخول
        */
-      const closeButton = target.closest(
-        "#v14LoginClose"
-      );
+      const closeButton =
+        target.closest(
+          "#v14LoginClose"
+        );
 
       if (closeButton) {
+
         event.preventDefault();
+
         closeLogin();
+
         return;
       }
 
       /*
        * تسجيل الدخول
        */
-      const submitLogin = target.closest(
-        "#v14LoginBtn"
-      );
+      const loginButton =
+        target.closest(
+          "#v14LoginBtn"
+        );
 
-      if (submitLogin) {
+      if (loginButton) {
+
         event.preventDefault();
 
-        if (
-          typeof window.__bell429Login ===
-          "function"
-        ) {
-          window.__bell429Login();
-        }
+        performLogin();
 
         return;
       }
@@ -146,33 +262,27 @@
       /*
        * تسجيل الخروج
        */
-      const logoutButton = target.closest(
-        "#v14LoginLogout"
-      );
+      const logoutButton =
+        target.closest(
+          "#v14LoginLogout"
+        );
 
       if (logoutButton) {
+
         event.preventDefault();
 
-        if (
-          typeof window.__bell429Logout ===
-          "function"
-        ) {
-          window.__bell429Logout();
-        }
+        performLogout();
 
         return;
       }
 
       /*
-       * زر إنشاء الطلب
-       *
-       * مهم:
-       * لا نفتح تسجيل الدخول هنا.
-       *
-       * إنشاء طلب جديد Public.
-       * secure-app.js هو المسؤول عن saveOrder().
+       * إنشاء الطلب:
+       * لا يتم طلب تسجيل دخول هنا.
+       * secure-app.js يعالج POST العام.
        */
-      const saveButton = target.closest("#save");
+      const saveButton =
+        target.closest("#save");
 
       if (saveButton) {
         return;
@@ -182,123 +292,80 @@
   );
 
   /*
-   * نموذج تسجيل الدخول فقط
+   * نموذج تسجيل الدخول
    */
   document.addEventListener(
     "submit",
     (event) => {
+
       const form = event.target;
 
       if (
         form &&
         (
-          form.id === "v14LoginForm" ||
+          form.id ===
+            "v14LoginForm" ||
           form.closest("#v14Login")
         )
       ) {
+
         event.preventDefault();
 
-        if (
-          typeof window.__bell429Login ===
-          "function"
-        ) {
-          window.__bell429Login();
-        }
+        performLogin();
       }
     },
     true
   );
 
   /*
-   * Enter داخل بيانات الدخول
+   * Enter داخل حقول الدخول
    */
   document.addEventListener(
     "keydown",
     (event) => {
-      if (event.key !== "Enter") return;
+
+      if (event.key !== "Enter") {
+        return;
+      }
 
       const target = event.target;
 
-      if (!target) return;
+      if (!target) {
+        return;
+      }
 
       if (
-        target.id === "v14LoginUser" ||
-        target.id === "v14LoginPass"
+        target.id ===
+          "v14LoginUser" ||
+        target.id ===
+          "v14LoginPass"
       ) {
+
         event.preventDefault();
 
-        const button = $("v14LoginBtn");
-
-        if (
-          button &&
-          !button.disabled &&
-          button.style.display !== "none"
-        ) {
-          button.click();
-        }
+        performLogin();
       }
     },
     true
   );
 
-  /*
-   * نربط دوال secure-app.js بعد تحميله.
-   *
-   * secure-app.js يحتوي login() و logout().
-   * نعرضهما للواجهة بدون تخزين أي بيانات اعتماد.
-   */
-  function connectSecureApp() {
-    if (
-      typeof window.login === "function"
-    ) {
-      window.__bell429Login =
-        window.login;
+  function normalizeLogin() {
+
+    const modal =
+      $("v14Login");
+
+    if (!modal) {
+      return;
     }
 
     if (
-      typeof window.logout === "function"
-    ) {
-      window.__bell429Logout =
-        window.logout;
-    }
-  }
-
-  /*
-   * secure-app.js يتم تحميله أيضًا بواسطة middleware
-   * لذلك نحاول الربط بعد DOM ثم نعيد المحاولة عدة مرات.
-   */
-  connectSecureApp();
-
-  let attempts = 0;
-
-  const timer = setInterval(() => {
-    connectSecureApp();
-
-    attempts++;
-
-    if (
-      attempts >= 40 ||
-      (
-        typeof window.__bell429Login ===
-          "function" &&
-        typeof window.__bell429Logout ===
-          "function"
+      !modal.classList.contains(
+        "show"
       )
     ) {
-      clearInterval(timer);
-    }
-  }, 250);
-
-  /*
-   * تأكد من أن نافذة الدخول مغلقة عند البداية.
-   */
-  function normalizeLogin() {
-    const modal = $("v14Login");
-
-    if (!modal) return;
-
-    if (!modal.classList.contains("show")) {
-      modal.classList.remove("show");
+      modal.classList.remove(
+        "show"
+      );
     }
   }
 
@@ -306,16 +373,20 @@
     document.readyState ===
     "loading"
   ) {
+
     document.addEventListener(
       "DOMContentLoaded",
       normalizeLogin,
       { once: true }
     );
+
   } else {
+
     normalizeLogin();
   }
 
   console.info(
     "Bell429 UI bindings loaded."
   );
+
 })();
