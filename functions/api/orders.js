@@ -300,79 +300,121 @@ async function getOrder(
 export async function onRequestGet(
   context
 ) {
-  const url = new URL(context.request.url);
-  const id = url.searchParams.get("id");
+  const url =
+    new URL(
+      context.request.url
+    );
+
+  const id =
+    url.searchParams.get(
+      "id"
+    );
 
   /*
    * Public tracking:
    * GET /api/orders?id=<order-id>
    *
    * No admin session is required.
-   * Only tracking-safe fields are returned.
    */
   if (id) {
-    const order = await getOrder(
-      context.env,
-      id,
-      false
-    );
+    const order =
+      await getOrder(
+        context.env,
+        id,
+        false
+      );
 
     if (!order) {
       return json(
-        { error: "Order not found" },
+        {
+          error:
+            "Order not found"
+        },
         404,
         {
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Referrer-Policy": "no-referrer"
+          "Cache-Control":
+            "no-store",
+          "X-Content-Type-Options":
+            "nosniff",
+          "Referrer-Policy":
+            "no-referrer"
         }
       );
     }
 
     const publicOrder = {
       id: order.id,
-      orderNo: order.orderNo,
+      orderNo:
+        order.orderNo,
       pn: order.pn,
-      partName: order.partName,
-      requestDate: order.requestDate,
+      partName:
+        order.partName,
+      requestDate:
+        order.requestDate,
       qty: order.qty,
       type: order.type,
-      urgent: !!order.urgent,
+      urgent:
+        !!order.urgent,
 
-      stages: Array.isArray(order.stages)
-        ? order.stages
-            .slice(0, STAGES)
-            .map((s) => ({
-              done: !!s.done,
-              rejected: !!s.rejected,
+      stages:
+        Array.isArray(
+          order.stages
+        )
+          ? order.stages
+              .slice(
+                0,
+                STAGES
+              )
+              .map((s) => ({
+                done:
+                  !!s.done,
 
-              rejectionReason: String(
-                s.rejectionReason || ""
-              ).slice(0, 1000),
+                rejected:
+                  !!s.rejected,
 
-              date: String(
-                s.date || ""
-              ).slice(0, 20)
-            }))
-        : [],
+                rejectionReason:
+                  String(
+                    s.rejectionReason ||
+                      ""
+                  ).slice(
+                    0,
+                    1000
+                  ),
 
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
+                date:
+                  String(
+                    s.date || ""
+                  ).slice(
+                    0,
+                    20
+                  )
+              }))
+          : [],
+
+      createdAt:
+        order.createdAt,
+
+      updatedAt:
+        order.updatedAt
     };
 
     return json(
       publicOrder,
       200,
       {
-        "Cache-Control": "no-store",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer"
+        "Cache-Control":
+          "no-store",
+        "X-Content-Type-Options":
+          "nosniff",
+        "Referrer-Policy":
+          "no-referrer"
       }
     );
   }
 
   /*
-   * Full list remains ADMIN ONLY.
+   * Full order list:
+   * requires authentication + index permission.
    */
   const auth =
     await requireSession(
@@ -383,6 +425,21 @@ export async function onRequestGet(
 
   if (auth.response)
     return auth.response;
+
+  if (
+    !hasPermission(
+      auth.session,
+      "index"
+    )
+  ) {
+    return json(
+      {
+        error:
+          "Forbidden"
+      },
+      403
+    );
+  }
 
   const rows =
     await context.env.DB
@@ -409,8 +466,6 @@ export async function onRequestGet(
 /*
  * إنشاء طلب جديد:
  * PUBLIC
- *
- * لا يحتاج تسجيل دخول.
  *
  * الحماية:
  * - Origin check
@@ -487,277 +542,4 @@ export async function onRequestPost(
         },
         () => ({
           done: false,
-          rejected: false,
-          rejectionReason: "",
-          person: "",
-          date: "",
-          notes: ""
-        })
-      );
-
-    await context.env.DB
-      .prepare(
-        "INSERT INTO orders(id,payload,created_at,updated_at) VALUES(?,?,?,?)"
-      )
-      .bind(
-        id,
-        JSON.stringify(o),
-        now,
-        now
-      )
-      .run();
-
-    /*
-     * user_id = null لأن
-     * إنشاء الطلب العام
-     * لا يملك جلسة مشرف.
-     *
-     * audit_log يسمح بذلك
-     * في قاعدة البيانات الحالية.
-     */
-    await context.env.DB
-      .prepare(
-        "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
-      )
-      .bind(
-        null,
-        "create_order",
-        id
-      )
-      .run();
-
-    return json(
-      {
-        ...o,
-        id,
-        createdAt: now,
-        updatedAt: now
-      },
-      201
-    );
-
-  } catch (e) {
-    return json(
-      {
-        error:
-          e?.message ===
-          "body_too_large"
-            ? "Request too large"
-            : "Bad request"
-      },
-      400
-    );
-  }
-}
-
-/*
- * تعديل طلب موجود:
- * يحتاج تسجيل دخول.
- */
-export async function onRequestPut(
-  context
-) {
-  const auth =
-    await requireSession(
-      context.request,
-      context.env,
-      true
-    );
-
-  if (auth.response)
-    return auth.response;
-
-  const id =
-    new URL(
-      context.request.url
-    ).searchParams.get(
-      "id"
-    );
-
-  if (!id)
-    return json(
-      {
-        error:
-          "Missing id"
-      },
-      400
-    );
-
-  const existing =
-    await getOrder(
-      context.env,
-      id
-    );
-
-  if (!existing)
-    return json(
-      {
-        error:
-          "Order not found"
-      },
-      404
-    );
-
-  try {
-    const body =
-      await readBody(
-        context.request
-      );
-
-    const o =
-      cleanOrder(
-        body,
-        existing
-      );
-
-    if (
-      !validNewOrder(o)
-    ) {
-      return json(
-        {
-          error:
-            "Missing required order fields"
-        },
-        400
-      );
-    }
-
-    const now =
-      new Date().toISOString();
-
-    await context.env.DB
-      .prepare(
-        "UPDATE orders SET payload=?,updated_at=? WHERE id=? AND deleted_at IS NULL"
-      )
-      .bind(
-        JSON.stringify(o),
-        now,
-        id
-      )
-      .run();
-
-    await context.env.DB
-      .prepare(
-        "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
-      )
-      .bind(
-        auth.session.user_id,
-        "update_order",
-        id
-      )
-      .run();
-
-    return json({
-      ...o,
-      id,
-      createdAt:
-        existing.createdAt,
-      updatedAt: now
-    });
-
-  } catch (e) {
-    return json(
-      {
-        error:
-          e?.message ===
-          "body_too_large"
-            ? "Request too large"
-            : "Bad request"
-      },
-      400
-    );
-  }
-}
-
-/*
- * حذف الطلب:
- * يحتاج جلسة + صلاحية delete.
- */
-export async function onRequestDelete(
-  context
-) {
-  const auth =
-    await requireSession(
-      context.request,
-      context.env,
-      true
-    );
-
-  if (auth.response)
-    return auth.response;
-
-  if (
-    !hasPermission(
-      auth.session,
-      "delete"
-    )
-  ) {
-    return json(
-      {
-        error:
-          "Forbidden"
-      },
-      403
-    );
-  }
-
-  const id =
-    new URL(
-      context.request.url
-    ).searchParams.get(
-      "id"
-    );
-
-  if (!id)
-    return json(
-      {
-        error:
-          "Missing id"
-      },
-      400
-    );
-
-  const existing =
-    await getOrder(
-      context.env,
-      id
-    );
-
-  if (!existing)
-    return json(
-      {
-        error:
-          "Order not found"
-      },
-      404
-    );
-
-  const now =
-    new Date().toISOString();
-
-  await context.env.DB
-    .prepare(
-      "UPDATE orders SET deleted_at=?,updated_at=? WHERE id=? AND deleted_at IS NULL"
-    )
-    .bind(
-      now,
-      now,
-      id
-    )
-    .run();
-
-  await context.env.DB
-    .prepare(
-      "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
-    )
-    .bind(
-      auth.session.user_id,
-      "delete_order",
-      id
-    )
-    .run();
-
-  return json({
-    ok: true
-  });
-}
+         
