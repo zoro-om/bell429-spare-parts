@@ -6,11 +6,65 @@ import {
 
 const MAX_BODY = 64 * 1024;
 const STAGES = 6;
+const MAX_REQUEST_NOTES = 2000;
 
-function cleanOrder(
-  input,
-  existing = {}
-) {
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function boundedString(value, fallback, max) {
+  if (value === undefined || value === null) {
+    return String(fallback ?? "").slice(0, max);
+  }
+
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number"
+  ) {
+    return String(fallback ?? "").slice(0, max);
+  }
+
+  return String(value).slice(0, max);
+}
+
+function booleanValue(value, fallback = false) {
+  if (value === undefined || value === null) {
+    return !!fallback;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === 1 || value === "1" || value === "true") {
+    return true;
+  }
+
+  if (value === 0 || value === "0" || value === "false") {
+    return false;
+  }
+
+  return !!fallback;
+}
+
+function validISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  );
+}
+
+function cleanOrder(input, existing = {}) {
   const allowed = [
     "requester",
     "orderNo",
@@ -34,177 +88,157 @@ function cleanOrder(
   for (const k of allowed) {
     if (
       input &&
-      Object.prototype.hasOwnProperty.call(
-        input,
-        k
-      )
+      Object.prototype.hasOwnProperty.call(input, k)
     ) {
       out[k] = input[k];
     }
   }
 
-  out.requester =
-    String(
-      out.requester ??
-        existing.requester ??
-        ""
-    ).slice(0, 120);
-
-  out.orderNo =
-    String(
-      out.orderNo ??
-        existing.orderNo ??
-        ""
-    ).slice(0, 80);
-
-  out.uin =
-    String(
-      out.uin ??
-        existing.uin ??
-        ""
-    ).slice(0, 80);
-
-  out.vote =
-    String(
-      out.vote ??
-        existing.vote ??
-        ""
-    ).slice(0, 80);
-
-  out.departmentPhone =
-    String(
-      out.departmentPhone ??
-        existing.departmentPhone ??
-        ""
-    ).slice(0, 40);
-
-  out.classification =
-    String(
-      out.classification ??
-        existing.classification ??
-        ""
-    ).slice(0, 40);
-
-  out.pn =
-    String(
-      out.pn ??
-        existing.pn ??
-        ""
-    ).slice(0, 120);
-
-  out.partSN =
-    String(
-      out.partSN ??
-        existing.partSN ??
-        ""
-    ).slice(0, 120);
-
-  out.partName =
-    String(
-      out.partName ??
-        existing.partName ??
-        ""
-    ).slice(0, 180);
-
-  out.requestDate =
-    String(
-      out.requestDate ??
-        existing.requestDate ??
-        ""
-    ).slice(0, 20);
-
-  out.qty = Math.max(
-    1,
-    Math.min(
-      100000,
-      Number(
-        out.qty ??
-          existing.qty ??
-          1
-      ) || 1
-    )
+  out.requester = boundedString(
+    out.requester,
+    existing.requester,
+    120
   );
 
-  out.type =
-    String(
-      out.type ??
-        existing.type ??
-        ""
-    ).slice(0, 30);
+  out.orderNo = boundedString(
+    out.orderNo,
+    existing.orderNo,
+    80
+  );
 
-  out.requestNotes =
-    String(
-      out.requestNotes ??
-        existing.requestNotes ??
-        ""
-    ).slice(0, 2000);
+  out.uin = boundedString(
+    out.uin,
+    existing.uin,
+    80
+  );
 
-  out.urgent = !!(
-    out.urgent ??
+  out.vote = boundedString(
+    out.vote,
+    existing.vote,
+    80
+  );
+
+  out.departmentPhone = boundedString(
+    out.departmentPhone,
+    existing.departmentPhone,
+    40
+  );
+
+  out.classification = boundedString(
+    out.classification,
+    existing.classification,
+    40
+  );
+
+  out.pn = boundedString(
+    out.pn,
+    existing.pn,
+    120
+  );
+
+  out.partSN = boundedString(
+    out.partSN,
+    existing.partSN,
+    120
+  );
+
+  out.partName = boundedString(
+    out.partName,
+    existing.partName,
+    180
+  );
+
+  out.requestDate = boundedString(
+    out.requestDate,
+    existing.requestDate,
+    20
+  );
+
+  const rawQty =
+    out.qty ??
+    existing.qty ??
+    1;
+
+  const parsedQty =
+    typeof rawQty === "number"
+      ? rawQty
+      : Number(rawQty);
+
+  out.qty =
+    Number.isFinite(parsedQty) &&
+    Number.isInteger(parsedQty)
+      ? Math.max(
+          1,
+          Math.min(100000, parsedQty)
+        )
+      : 1;
+
+  out.type = boundedString(
+    out.type,
+    existing.type,
+    30
+  );
+
+  out.requestNotes = boundedString(
+    out.requestNotes,
+    existing.requestNotes,
+    MAX_REQUEST_NOTES
+  );
+
+  out.urgent = booleanValue(
+    out.urgent,
     existing.urgent
   );
 
-  if (
-    Array.isArray(
-      out.stages
-    )
-  ) {
-    out.stages =
-      out.stages
-        .slice(0, STAGES)
-        .map((s) => ({
-          done: !!s.done,
+  if (Array.isArray(out.stages)) {
+    out.stages = out.stages
+      .slice(0, STAGES)
+      .map((s) => {
+        const stage = isPlainObject(s)
+          ? s
+          : {};
 
-          rejected:
-            !!s.rejected,
+        return {
+          done: booleanValue(stage.done),
 
-          rejectionReason:
-            String(
-              s.rejectionReason ||
-                ""
-            ).slice(
-              0,
-              1000
-            ),
+          rejected: booleanValue(
+            stage.rejected
+          ),
 
-          person:
-            String(
-              s.person || ""
-            ).slice(
-              0,
-              120
-            ),
+          rejectionReason: boundedString(
+            stage.rejectionReason,
+            "",
+            1000
+          ),
 
-          date:
-            String(
-              s.date || ""
-            ).slice(
-              0,
-              20
-            ),
+          person: boundedString(
+            stage.person,
+            "",
+            120
+          ),
 
-          notes:
-            String(
-              s.notes || ""
-            ).slice(
-              0,
-              2000
-            )
-        }));
-  } else if (
-    Array.isArray(
-      existing.stages
-    )
-  ) {
-    out.stages =
-      existing.stages;
+          date: boundedString(
+            stage.date,
+            "",
+            20
+          ),
+
+          notes: boundedString(
+            stage.notes,
+            "",
+            MAX_REQUEST_NOTES
+          )
+        };
+      });
+  } else if (Array.isArray(existing.stages)) {
+    out.stages = existing.stages;
   }
 
   return out;
 }
 
 function validNewOrder(o) {
-  return [
+  const required = [
     "requester",
     "orderNo",
     "uin",
@@ -215,25 +249,53 @@ function validNewOrder(o) {
     "partName",
     "requestDate",
     "type"
-  ].every(
-    (k) =>
-      String(
-        o[k] || ""
-      ).trim()
-  );
-}
-
-async function readBody(
-  request
-) {
-  const len =
-    Number(
-      request.headers.get(
-        "content-length"
-      ) || 0
-    );
+  ];
 
   if (
+    !required.every(
+      (k) =>
+        typeof o[k] === "string" &&
+        o[k].trim().length > 0
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isInteger(o.qty) ||
+    o.qty < 1 ||
+    o.qty > 100000
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+async function readBody(request) {
+  const contentType =
+    request.headers.get(
+      "content-type"
+    ) || "";
+
+  if (
+    !contentType
+      .toLowerCase()
+      .startsWith("application/json")
+  ) {
+    throw new Error(
+      "unsupported_content_type"
+    );
+  }
+
+  const len = Number(
+    request.headers.get(
+      "content-length"
+    ) || 0
+  );
+
+  if (
+    Number.isFinite(len) &&
     len > MAX_BODY
   ) {
     throw new Error(
@@ -241,21 +303,35 @@ async function readBody(
     );
   }
 
-  const text =
-    await request.text();
+  const text = await request.text();
 
   if (
     new TextEncoder()
       .encode(text)
-      .byteLength >
-    MAX_BODY
+      .byteLength > MAX_BODY
   ) {
     throw new Error(
       "body_too_large"
     );
   }
 
-  return JSON.parse(text);
+  let body;
+
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(
+      "invalid_json"
+    );
+  }
+
+  if (!isPlainObject(body)) {
+    throw new Error(
+      "invalid_body"
+    );
+  }
+
+  return body;
 }
 
 async function getOrder(
@@ -266,55 +342,58 @@ async function getOrder(
   const row =
     await env.DB
       .prepare(
-        "SELECT id,payload,created_at,updated_at,deleted_at FROM orders WHERE id=?"
+        `
+        SELECT
+          id,
+          payload,
+          created_at,
+          updated_at,
+          deleted_at
+        FROM orders
+        WHERE id=?
+        `
       )
       .bind(id)
       .first();
 
   if (
     !row ||
-    (!includeTrash &&
-      row.deleted_at)
+    (!includeTrash && row.deleted_at)
   ) {
     return null;
   }
 
-  const payload =
-    JSON.parse(
+  let payload = {};
+
+  try {
+    payload = JSON.parse(
       row.payload || "{}"
     );
+  } catch {
+    payload = {};
+  }
 
   return {
     ...payload,
     id: row.id,
-    createdAt:
-      row.created_at,
-    updatedAt:
-      row.updated_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
     deletedAt:
-      row.deleted_at ||
-      undefined
+      row.deleted_at || undefined
   };
 }
 
-export async function onRequestGet(
-  context
-) {
-  const url =
-    new URL(
-      context.request.url
-    );
+export async function onRequestGet(context) {
+  const url = new URL(
+    context.request.url
+  );
 
   const id =
-    url.searchParams.get(
-      "id"
-    );
+    url.searchParams.get("id");
 
   /*
    * Public tracking:
    * GET /api/orders?id=<order-id>
-   *
-   * No admin session is required.
    */
   if (id) {
     const order =
@@ -344,15 +423,25 @@ export async function onRequestGet(
 
     const publicOrder = {
       id: order.id,
+
       orderNo:
         order.orderNo,
-      pn: order.pn,
+
+      pn:
+        order.pn,
+
       partName:
         order.partName,
+
       requestDate:
         order.requestDate,
-      qty: order.qty,
-      type: order.type,
+
+      qty:
+        order.qty,
+
+      type:
+        order.type,
+
       urgent:
         !!order.urgent,
 
@@ -404,8 +493,10 @@ export async function onRequestGet(
       {
         "Cache-Control":
           "no-store",
+
         "X-Content-Type-Options":
           "nosniff",
+
         "Referrer-Policy":
           "no-referrer"
       }
@@ -423,8 +514,9 @@ export async function onRequestGet(
       false
     );
 
-  if (auth.response)
+  if (auth.response) {
     return auth.response;
+  }
 
   if (
     !hasPermission(
@@ -444,22 +536,42 @@ export async function onRequestGet(
   const rows =
     await context.env.DB
       .prepare(
-        "SELECT id,payload,created_at,updated_at FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 500"
+        `
+        SELECT
+          id,
+          payload,
+          created_at,
+          updated_at
+        FROM orders
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 500
+        `
       )
       .all();
 
   return json(
     (rows.results || [])
-      .map((r) => ({
-        ...JSON.parse(
-          r.payload || "{}"
-        ),
-        id: r.id,
-        createdAt:
-          r.created_at,
-        updatedAt:
-          r.updated_at
-      }))
+      .map((r) => {
+        let payload = {};
+
+        try {
+          payload = JSON.parse(
+            r.payload || "{}"
+          );
+        } catch {
+          payload = {};
+        }
+
+        return {
+          ...payload,
+          id: r.id,
+          createdAt:
+            r.created_at,
+          updatedAt:
+            r.updated_at
+        };
+      })
   );
 }
 
@@ -470,6 +582,7 @@ export async function onRequestGet(
  * الحماية:
  * - Origin check
  * - body size limit
+ * - JSON content type
  * - allowed fields
  * - field length limits
  * - validation
@@ -485,24 +598,29 @@ export async function onRequestPost(
         "Origin"
       );
 
-    if (origin) {
-      const requestOrigin =
-        new URL(
-          context.request.url
-        ).origin;
+    const requestOrigin =
+      new URL(
+        context.request.url
+      ).origin;
 
-      if (
-        origin !==
-        requestOrigin
-      ) {
-        return json(
-          {
-            error:
-              "Invalid origin"
-          },
-          403
-        );
-      }
+    if (
+      !origin ||
+      origin !== requestOrigin
+    ) {
+      return json(
+        {
+          error:
+            "Invalid origin"
+        },
+        403,
+        {
+          "Cache-Control":
+            "no-store",
+
+          "X-Content-Type-Options":
+            "nosniff"
+        }
+      );
     }
 
     const body =
@@ -525,6 +643,23 @@ export async function onRequestPost(
       );
     }
 
+    /*
+     * Validate requestDate when supplied.
+     */
+    if (
+      !validISODate(
+        o.requestDate
+      )
+    ) {
+      return json(
+        {
+          error:
+            "Invalid request date"
+        },
+        400
+      );
+    }
+
     const id =
       crypto.randomUUID();
 
@@ -532,8 +667,11 @@ export async function onRequestPost(
       new Date().toISOString();
 
     /*
-     * المراحل يتم إنشاؤها
-     * من الخادم وليس من العميل.
+     * Stages are always generated
+     * server-side.
+     *
+     * Client cannot create arbitrary
+     * stage state when creating an order.
      */
     o.stages =
       Array.from(
@@ -552,7 +690,15 @@ export async function onRequestPost(
 
     await context.env.DB
       .prepare(
-        "INSERT INTO orders(id,payload,created_at,updated_at) VALUES(?,?,?,?)"
+        `
+        INSERT INTO orders(
+          id,
+          payload,
+          created_at,
+          updated_at
+        )
+        VALUES(?,?,?,?)
+        `
       )
       .bind(
         id,
@@ -564,7 +710,14 @@ export async function onRequestPost(
 
     await context.env.DB
       .prepare(
-        "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
+        `
+        INSERT INTO audit_log(
+          user_id,
+          action,
+          target_id
+        )
+        VALUES(?,?,?)
+        `
       )
       .bind(
         null,
@@ -584,12 +737,28 @@ export async function onRequestPost(
     );
 
   } catch (e) {
+    const message =
+      e?.message || "";
+
     return json(
       {
         error:
-          e?.message ===
+          message ===
           "body_too_large"
             ? "Request too large"
+
+            : message ===
+              "unsupported_content_type"
+              ? "Content-Type must be application/json"
+
+            : message ===
+              "invalid_json"
+              ? "Invalid JSON"
+
+            : message ===
+              "invalid_body"
+              ? "Invalid request body"
+
             : "Bad request"
       },
       400
@@ -613,17 +782,10 @@ export async function onRequestPut(
       true
     );
 
-  if (auth.response)
+  if (auth.response) {
     return auth.response;
+  }
 
-  /*
-   * SECURITY FIX:
-   * لا يكفي أن يكون المستخدم
-   * مسجلاً للدخول.
-   *
-   * يجب أن يمتلك صلاحية
-   * index لإدارة الطلبات.
-   */
   if (
     !hasPermission(
       auth.session,
@@ -646,7 +808,7 @@ export async function onRequestPut(
       "id"
     );
 
-  if (!id)
+  if (!id) {
     return json(
       {
         error:
@@ -654,6 +816,7 @@ export async function onRequestPut(
       },
       400
     );
+  }
 
   const existing =
     await getOrder(
@@ -661,7 +824,7 @@ export async function onRequestPut(
       id
     );
 
-  if (!existing)
+  if (!existing) {
     return json(
       {
         error:
@@ -669,6 +832,7 @@ export async function onRequestPut(
       },
       404
     );
+  }
 
   try {
     const body =
@@ -694,12 +858,33 @@ export async function onRequestPut(
       );
     }
 
+    if (
+      !validISODate(
+        o.requestDate
+      )
+    ) {
+      return json(
+        {
+          error:
+            "Invalid request date"
+        },
+        400
+      );
+    }
+
     const now =
       new Date().toISOString();
 
     await context.env.DB
       .prepare(
-        "UPDATE orders SET payload=?,updated_at=? WHERE id=? AND deleted_at IS NULL"
+        `
+        UPDATE orders
+        SET
+          payload=?,
+          updated_at=?
+        WHERE id=?
+          AND deleted_at IS NULL
+        `
       )
       .bind(
         JSON.stringify(o),
@@ -710,7 +895,14 @@ export async function onRequestPut(
 
     await context.env.DB
       .prepare(
-        "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
+        `
+        INSERT INTO audit_log(
+          user_id,
+          action,
+          target_id
+        )
+        VALUES(?,?,?)
+        `
       )
       .bind(
         auth.session.user_id,
@@ -728,12 +920,28 @@ export async function onRequestPut(
     });
 
   } catch (e) {
+    const message =
+      e?.message || "";
+
     return json(
       {
         error:
-          e?.message ===
+          message ===
           "body_too_large"
             ? "Request too large"
+
+            : message ===
+              "unsupported_content_type"
+              ? "Content-Type must be application/json"
+
+            : message ===
+              "invalid_json"
+              ? "Invalid JSON"
+
+            : message ===
+              "invalid_body"
+              ? "Invalid request body"
+
             : "Bad request"
       },
       400
@@ -755,8 +963,9 @@ export async function onRequestDelete(
       true
     );
 
-  if (auth.response)
+  if (auth.response) {
     return auth.response;
+  }
 
   if (
     !hasPermission(
@@ -780,7 +989,7 @@ export async function onRequestDelete(
       "id"
     );
 
-  if (!id)
+  if (!id) {
     return json(
       {
         error:
@@ -788,6 +997,7 @@ export async function onRequestDelete(
       },
       400
     );
+  }
 
   const existing =
     await getOrder(
@@ -795,7 +1005,7 @@ export async function onRequestDelete(
       id
     );
 
-  if (!existing)
+  if (!existing) {
     return json(
       {
         error:
@@ -803,13 +1013,21 @@ export async function onRequestDelete(
       },
       404
     );
+  }
 
   const now =
     new Date().toISOString();
 
   await context.env.DB
     .prepare(
-      "UPDATE orders SET deleted_at=?,updated_at=? WHERE id=? AND deleted_at IS NULL"
+      `
+      UPDATE orders
+      SET
+        deleted_at=?,
+        updated_at=?
+      WHERE id=?
+        AND deleted_at IS NULL
+      `
     )
     .bind(
       now,
@@ -820,7 +1038,14 @@ export async function onRequestDelete(
 
   await context.env.DB
     .prepare(
-      "INSERT INTO audit_log(user_id,action,target_id) VALUES(?,?,?)"
+      `
+      INSERT INTO audit_log(
+        user_id,
+        action,
+        target_id
+      )
+      VALUES(?,?,?)
+      `
     )
     .bind(
       auth.session.user_id,
