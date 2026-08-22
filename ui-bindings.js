@@ -676,6 +676,150 @@
           "#v14LoginClose"
         );
 
-      if (closeButton) {
+            if (closeButton) {
 
-       
+        event.preventDefault();
+
+        closeLogin();
+
+        return;
+      }
+
+      /*
+       * تسجيل الدخول
+       */
+      const loginButton =
+        target.closest(
+          "#v14LoginBtn"
+        );
+
+      if (loginButton) {
+
+        event.preventDefault();
+
+        performLogin();
+
+        return;
+      }
+
+      /*
+       * تسجيل الخروج
+       */
+      const logoutButton =
+        target.closest(
+          "#v14LoginLogout"
+        );
+
+      if (logoutButton) {
+
+        event.preventDefault();
+
+        performLogout();
+
+        return;
+      }
+
+      /*
+       * مهم:
+       *
+       * لا نوقف زر إنشاء الطلب.
+       *
+       * secure-app.js هو المسؤول عن:
+       * POST /api/orders
+       *
+       * وإنشاء الطلب الجديد لا يحتاج
+       * إلى جلسة مشرف.
+       */
+      if (
+        target.closest("#save")
+      ) {
+        return;
+      }
+    },
+    true
+  );
+
+  /*
+   * Submit login form
+   */
+  document.addEventListener(
+    "submit",
+    (event) => {
+
+      const form =
+        event.target;
+
+      if (
+        form &&
+        (
+          form.id ===
+            "v14LoginForm" ||
+          form.closest("#v14Login")
+        )
+      ) {
+
+        event.preventDefault();
+
+        performLogin();
+      }
+    },
+    true
+  );
+
+  /*
+   * Enter / Escape داخل نافذة الدخول
+   */
+  document.addEventListener(
+    "keydown",
+    (event) => {
+
+      const target =
+        event.target;
+
+      if (!target) {
+        return;
+      }
+
+      /*
+       * Enter
+       */
+      if (
+        event.key === "Enter" &&
+        (
+          target.id ===
+            "v14LoginUser" ||
+          target.id ===
+            "v14LoginPass"
+        )
+      ) {
+
+        event.preventDefault();
+
+        performLogin();
+
+        return;
+      }
+
+      /*
+       * Escape
+       */
+      if (event.key === "Escape") {
+
+        const modal =
+          $("#v14Login");
+
+        if (
+          modal &&
+          modal.classList.contains("show")
+        ) {
+
+          event.preventDefault();
+
+          closeLogin();
+        }
+      }
+    },
+    true
+  );
+
+})();
