@@ -173,6 +173,7 @@
         </p>
 
         <div class="bell429-login-field">
+
           <label for="v14LoginUser">
             اسم المستخدم
           </label>
@@ -184,9 +185,11 @@
             autocapitalize="none"
             spellcheck="false"
           >
+
         </div>
 
         <div class="bell429-login-field">
+
           <label for="v14LoginPass">
             كلمة المرور
           </label>
@@ -198,6 +201,7 @@
               align-items:center;
             "
           >
+
             <input
               id="v14LoginPass"
               type="password"
@@ -230,7 +234,9 @@
                 cursor:pointer;
               "
             >👁️</button>
+
           </div>
+
         </div>
 
         <div id="v14LoginMsg"></div>
@@ -282,6 +288,7 @@
       togglePasswordButton &&
       passwordInput
     ) {
+
       togglePasswordButton.addEventListener(
         "click",
         () => {
@@ -290,10 +297,14 @@
             passwordInput.type === "password";
 
           passwordInput.type =
-            isHidden ? "text" : "password";
+            isHidden
+              ? "text"
+              : "password";
 
           togglePasswordButton.textContent =
-            isHidden ? "🙈" : "👁️";
+            isHidden
+              ? "🙈"
+              : "👁️";
 
           togglePasswordButton.setAttribute(
             "aria-label",
@@ -308,26 +319,36 @@
               ? "إخفاء كلمة المرور"
               : "إظهار كلمة المرور"
           );
+
         }
       );
+
     }
 
     /*
      * إغلاق النافذة عند الضغط خارجها
      */
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
-        closeLogin();
+    modal.addEventListener(
+      "click",
+      (event) => {
+
+        if (event.target === modal) {
+          closeLogin();
+        }
+
       }
-    });
+    );
   }
 
   function openLogin() {
+
     ensureLoginModal();
 
-    const modal = $("v14Login");
+    const modal =
+      $("v14Login");
 
     if (!modal) {
+
       console.error(
         "Bell429: login modal could not be created"
       );
@@ -337,25 +358,41 @@
 
     modal.classList.add("show");
 
-    const user = $("v14LoginUser");
-    const pass = $("v14LoginPass");
-    const loginButton = $("v14LoginBtn");
-    const logoutButton = $("v14LoginLogout");
-    const closeButton = $("v14LoginClose");
-    const message = $("v14LoginMsg");
+    const user =
+      $("v14LoginUser");
+
+    const pass =
+      $("v14LoginPass");
+
+    const loginButton =
+      $("v14LoginBtn");
+
+    const logoutButton =
+      $("v14LoginLogout");
+
+    const closeButton =
+      $("v14LoginClose");
+
+    const message =
+      $("v14LoginMsg");
 
     if (message) {
       message.textContent = "";
     }
 
     if (user) {
+
       user.disabled = false;
+
       user.focus();
     }
 
     if (pass) {
+
       pass.disabled = false;
+
       pass.value = "";
+
       pass.type = "password";
     }
 
@@ -366,7 +403,9 @@
       $("v14TogglePassword");
 
     if (togglePasswordButton) {
-      togglePasswordButton.textContent = "👁️";
+
+      togglePasswordButton.textContent =
+        "👁️";
 
       togglePasswordButton.setAttribute(
         "aria-label",
@@ -380,30 +419,51 @@
     }
 
     if (loginButton) {
-      loginButton.style.display = "inline-flex";
+
+      loginButton.style.display =
+        "inline-flex";
+
       loginButton.disabled = false;
     }
 
     if (logoutButton) {
-      logoutButton.style.display = "none";
+
+      logoutButton.style.display =
+        "none";
     }
 
     if (closeButton) {
-      closeButton.style.display = "inline-flex";
+
+      closeButton.style.display =
+        "inline-flex";
     }
   }
 
   function closeLogin() {
-    $("v14Login")?.classList.remove("show");
+
+    const modal =
+      $("v14Login");
+
+    if (modal) {
+      modal.classList.remove("show");
+    }
   }
 
   async function performLogin() {
+
     ensureLoginModal();
 
-    const userEl = $("v14LoginUser");
-    const passEl = $("v14LoginPass");
-    const button = $("v14LoginBtn");
-    const message = $("v14LoginMsg");
+    const userEl =
+      $("v14LoginUser");
+
+    const passEl =
+      $("v14LoginPass");
+
+    const button =
+      $("v14LoginBtn");
+
+    const message =
+      $("v14LoginMsg");
 
     const username =
       userEl?.value?.trim() || "";
@@ -412,7 +472,9 @@
       passEl?.value || "";
 
     if (!username || !password) {
+
       if (message) {
+
         message.textContent =
           "أدخل اسم المستخدم وكلمة المرور.";
       }
@@ -425,28 +487,34 @@
     }
 
     if (message) {
+
       message.textContent =
         "جاري تسجيل الدخول...";
     }
 
     try {
-      const response = await fetch(
-        "/api/auth/login",
-        {
-          method: "POST",
-          credentials: "same-origin",
 
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
+      const response =
+        await fetch(
+          "/api/auth/login",
+          {
+            method: "POST",
 
-          body: JSON.stringify({
-            username,
-            password
-          })
-        }
-      );
+            credentials:
+              "same-origin",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                username,
+                password
+              })
+          }
+        );
 
       const text =
         await response.text();
@@ -454,12 +522,16 @@
       let data = null;
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : null;
+
+        data =
+          text
+            ? JSON.parse(text)
+            : null;
+
       } catch {}
 
       if (!response.ok) {
+
         throw new Error(
           data?.error ||
           "فشل تسجيل الدخول"
@@ -473,11 +545,13 @@
        * secure-app.js سيقرأ الجلسة الجديدة
        * من /api/auth/me.
        */
+
       window.location.reload();
 
     } catch (error) {
 
       if (message) {
+
         message.textContent =
           error?.message ||
           "فشل تسجيل الدخول";
@@ -490,7 +564,9 @@
   }
 
   async function performLogout() {
+
     try {
+
       await fetch(
         "/api/auth/logout",
         {
@@ -498,19 +574,24 @@
           credentials: "same-origin"
         }
       );
+
     } catch {}
 
     window.location.reload();
   }
 
   /*
+   * ============================================================
    * Navigation + Login controls
+   * ============================================================
    */
+
   document.addEventListener(
     "click",
     (event) => {
 
-      const target = event.target;
+      const target =
+        event.target;
 
       if (!target) {
         return;
@@ -519,6 +600,7 @@
       /*
        * Navigation
        */
+
       const navButton =
         target.closest(
           ".nav button[data-page]"
@@ -534,6 +616,7 @@
           typeof window.showPage ===
             "function"
         ) {
+
           event.preventDefault();
 
           window.showPage(page);
@@ -545,6 +628,7 @@
       /*
        * دخول المشرفين
        */
+
       const loginNav =
         target.closest(
           "#secureLoginNav, #v14AdminNav"
@@ -562,6 +646,7 @@
       /*
        * لوحة المصمم
        */
+
       const adminNav =
         target.closest(
           "#secureAdminNav"
@@ -573,8 +658,9 @@
 
         if (
           typeof window.showPage ===
-          "function"
+            "function"
         ) {
+
           window.showPage("admin");
         }
 
@@ -584,6 +670,7 @@
       /*
        * إغلاق الدخول
        */
+
       const closeButton =
         target.closest(
           "#v14LoginClose"
@@ -591,126 +678,4 @@
 
       if (closeButton) {
 
-        event.preventDefault();
-
-        closeLogin();
-
-        return;
-      }
-
-      /*
-       * تسجيل الدخول
-       */
-      const loginButton =
-        target.closest(
-          "#v14LoginBtn"
-        );
-
-      if (loginButton) {
-
-        event.preventDefault();
-
-        performLogin();
-
-        return;
-      }
-
-      /*
-       * تسجيل الخروج
-       */
-      const logoutButton =
-        target.closest(
-          "#v14LoginLogout"
-        );
-
-      if (logoutButton) {
-
-        event.preventDefault();
-
-        performLogout();
-
-        return;
-      }
-
-      /*
-       * مهم:
-       *
-       * لا نوقف زر إنشاء الطلب.
-       *
-       * secure-app.js هو المسؤول عن:
-       * POST /api/orders
-       *
-       * وإنشاء الطلب الجديد لا يحتاج
-       * إلى جلسة مشرف.
-       */
-      if (
-        target.closest("#save")
-      ) {
-        return;
-      }
-    },
-    true
-  );
-
-  /*
-   * Submit login form
-   */
-  document.addEventListener(
-    "submit",
-    (event) => {
-
-      const form =
-        event.target;
-
-      if (
-        form &&
-        (
-          form.id ===
-            "v14LoginForm" ||
-          form.closest("#v14Login")
-        )
-      ) {
-
-        event.preventDefault();
-
-        performLogin();
-      }
-    },
-    true
-  );
-
-  /*
-   * Enter / Escape داخل نافذة الدخول
-   */
-  document.addEventListener(
-    "keydown",
-    (event) => {
-
-      const target =
-        event.target;
-
-      if (!target) {
-        return;
-      }
-
-      /*
-       * Enter
-       */
-      if (
-        event.key === "Enter" &&
-        (
-          target.id ===
-            "v14LoginUser" ||
-          target.id ===
-            "v14LoginPass"
-        )
-      ) {
-
-        event.preventDefault();
-
-        performLogin();
-
-        return;
-      }
-
-     
+       
