@@ -15,7 +15,7 @@ async function tokenMatches(supplied, expected) {
 }
 
 async function hashPassword(password) {
-  const iterations = 210000;
+  const iterations = 100000;
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
 
