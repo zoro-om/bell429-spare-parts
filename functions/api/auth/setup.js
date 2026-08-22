@@ -27,7 +27,7 @@ async function hashPassword(password) {
     key,
     256
   );
-  return `pbkdf2$${iterations}$$${b64url(salt)}$${b64url(new Uint8Array(bits))}`;
+  return `pbkdf2$${iterations}$${b64url(salt)}$${b64url(new Uint8Array(bits))}`;
 }
 
 function b64url(bytes) {
