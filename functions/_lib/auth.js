@@ -74,7 +74,7 @@ async function verifyPassword(password, record) {
   if (parts.length !== 4 || parts[0] !== "pbkdf2") return false;
 
   const iterations = Number(parts[1]);
-  if (!Number.isInteger(iterations) || iterations < 210000 || iterations > 1000000) {
+  if (!Number.isInteger(iterations) || iterations < 100000 || iterations > 1000000) {
     return false;
   }
 
