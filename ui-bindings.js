@@ -10,6 +10,7 @@
    * - Creates the login modal if index.html does not contain it.
    * - Handles supervisor login/logout.
    * - Handles navigation.
+   * - Handles password visibility toggle.
    * - Does NOT require supervisor login to create a new order.
    * ============================================================
    */
@@ -155,7 +156,10 @@
 
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("aria-labelledby", "bell429LoginTitle");
+    modal.setAttribute(
+      "aria-labelledby",
+      "bell429LoginTitle"
+    );
 
     modal.innerHTML = `
       <div class="bell429-login-modal">
@@ -187,11 +191,46 @@
             كلمة المرور
           </label>
 
-          <input
-            id="v14LoginPass"
-            type="password"
-            autocomplete="current-password"
+          <div
+            style="
+              position:relative;
+              display:flex;
+              align-items:center;
+            "
           >
+            <input
+              id="v14LoginPass"
+              type="password"
+              autocomplete="current-password"
+              style="
+                padding-left:44px;
+              "
+            >
+
+            <button
+              type="button"
+              id="v14TogglePassword"
+              aria-label="إظهار كلمة المرور"
+              title="إظهار كلمة المرور"
+              style="
+                position:absolute;
+                left:7px;
+                top:50%;
+                transform:translateY(-50%);
+                width:32px;
+                height:32px;
+                padding:0;
+                margin:0;
+                border:0;
+                border-radius:7px;
+                background:#edf3f7;
+                color:#0e5b8d;
+                font-size:16px;
+                line-height:1;
+                cursor:pointer;
+              "
+            >👁️</button>
+          </div>
         </div>
 
         <div id="v14LoginMsg"></div>
@@ -227,6 +266,55 @@
 
     document.body.appendChild(modal);
 
+    /*
+     * ============================================================
+     * إظهار / إخفاء كلمة المرور
+     * ============================================================
+     */
+
+    const togglePasswordButton =
+      $("v14TogglePassword");
+
+    const passwordInput =
+      $("v14LoginPass");
+
+    if (
+      togglePasswordButton &&
+      passwordInput
+    ) {
+      togglePasswordButton.addEventListener(
+        "click",
+        () => {
+
+          const isHidden =
+            passwordInput.type === "password";
+
+          passwordInput.type =
+            isHidden ? "text" : "password";
+
+          togglePasswordButton.textContent =
+            isHidden ? "🙈" : "👁️";
+
+          togglePasswordButton.setAttribute(
+            "aria-label",
+            isHidden
+              ? "إخفاء كلمة المرور"
+              : "إظهار كلمة المرور"
+          );
+
+          togglePasswordButton.setAttribute(
+            "title",
+            isHidden
+              ? "إخفاء كلمة المرور"
+              : "إظهار كلمة المرور"
+          );
+        }
+      );
+    }
+
+    /*
+     * إغلاق النافذة عند الضغط خارجها
+     */
     modal.addEventListener("click", (event) => {
       if (event.target === modal) {
         closeLogin();
@@ -268,6 +356,27 @@
     if (pass) {
       pass.disabled = false;
       pass.value = "";
+      pass.type = "password";
+    }
+
+    /*
+     * إعادة زر العين إلى حالته الأصلية
+     */
+    const togglePasswordButton =
+      $("v14TogglePassword");
+
+    if (togglePasswordButton) {
+      togglePasswordButton.textContent = "👁️";
+
+      togglePasswordButton.setAttribute(
+        "aria-label",
+        "إظهار كلمة المرور"
+      );
+
+      togglePasswordButton.setAttribute(
+        "title",
+        "إظهار كلمة المرور"
+      );
     }
 
     if (loginButton) {
@@ -571,17 +680,11 @@
   );
 
   /*
-   * Enter داخل حقول الدخول
+   * Enter / Escape داخل نافذة الدخول
    */
   document.addEventListener(
     "keydown",
     (event) => {
-
-      if (
-        event.key !== "Enter"
-      ) {
-        return;
-      }
 
       const target =
         event.target;
@@ -590,55 +693,24 @@
         return;
       }
 
+      /*
+       * Enter
+       */
       if (
-        target.id ===
-          "v14LoginUser" ||
-        target.id ===
-          "v14LoginPass"
+        event.key === "Enter" &&
+        (
+          target.id ===
+            "v14LoginUser" ||
+          target.id ===
+            "v14LoginPass"
+        )
       ) {
 
         event.preventDefault();
 
         performLogin();
+
+        return;
       }
 
-      if (
-        event.key === "Escape" &&
-        target.closest("#v14Login")
-      ) {
-        event.preventDefault();
-
-        closeLogin();
-      }
-    },
-    true
-  );
-
-  /*
-   * Create the login UI after DOM is available.
-   */
-  function bootBindings() {
-    ensureLoginModal();
-
-    console.info(
-      "Bell429 secure UI bindings loaded."
-    );
-  }
-
-  if (
-    document.readyState ===
-    "loading"
-  ) {
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      bootBindings,
-      { once: true }
-    );
-
-  } else {
-
-    bootBindings();
-  }
-
-})();
+     
